@@ -1,0 +1,227 @@
+-- ==========================================
+-- ALL-IN-ONE FARM HUB (Native UI - Red Theme)
+-- ==========================================
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Workspace = game:GetService("Workspace")
+local LocalPlayer = Players.LocalPlayer
+
+-- Create UI Elements
+local ScreenGui = Instance.new("ScreenGui")
+local MainFrame = Instance.new("Frame")
+local TitleLabel = Instance.new("TextLabel")
+local LevelLabel = Instance.new("TextLabel")
+local ScrollFrame = Instance.new("ScrollingFrame")
+local UIListLayout = Instance.new("UIListLayout")
+
+-- UI Configuration
+ScreenGui.Name = "FarmHubNative"
+ScreenGui.ResetOnSpawn = false
+ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+
+MainFrame.Size = UDim2.new(0, 300, 0, 450)
+MainFrame.Position = UDim2.new(0.5, -150, 0.5, -225)
+MainFrame.BackgroundColor3 = Color3.fromRGB(130, 0, 0) -- Dark Red
+MainFrame.BorderSizePixel = 0
+MainFrame.Parent = ScreenGui
+
+TitleLabel.Size = UDim2.new(1, 0, 0, 40)
+TitleLabel.Position = UDim2.new(0, 0, 0, 0)
+TitleLabel.BackgroundColor3 = Color3.fromRGB(100, 0, 0)
+TitleLabel.Text = "FARM HUB"
+TitleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+TitleLabel.TextSize = 24
+TitleLabel.Font = Enum.Font.SourceSansBold
+TitleLabel.Parent = MainFrame
+
+LevelLabel.Size = UDim2.new(1, 0, 0, 30)
+LevelLabel.Position = UDim2.new(0, 0, 0, 40)
+LevelLabel.BackgroundTransparency = 1
+LevelLabel.Text = "Level: 0 | Ups: 0"
+LevelLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+LevelLabel.TextSize = 18
+LevelLabel.Font = Enum.Font.SourceSansBold
+LevelLabel.Parent = MainFrame
+
+ScrollFrame.Size = UDim2.new(1, -10, 1, -80)
+ScrollFrame.Position = UDim2.new(0, 5, 0, 75)
+ScrollFrame.BackgroundColor3 = Color3.fromRGB(150, 20, 20)
+ScrollFrame.BorderSizePixel = 0
+ScrollFrame.ScrollBarThickness = 6
+ScrollFrame.Parent = MainFrame
+
+UIListLayout.Parent = ScrollFrame
+UIListLayout.Padding = UDim.new(0, 5)
+UIListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+
+ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+
+-- ==========================================
+-- LEVEL COUNTER LOGIC
+-- ==========================================
+local leaderstats = LocalPlayer:WaitForChild("leaderstats")
+local levelValue = leaderstats:WaitForChild("Level")
+local levelUps = 0
+local lastLevel = levelValue.Value
+
+local function updateLevelDisplay()
+    if levelValue.Value > lastLevel then
+        levelUps += 1
+        lastLevel = levelValue.Value
+    end
+    LevelLabel.Text = "Level: " .. levelValue.Value .. " | Ups: " .. levelUps
+end
+
+levelValue.Changed:Connect(updateLevelDisplay)
+updateLevelDisplay()
+
+-- ==========================================
+-- SCRIPT FUNCTIONS
+-- ==========================================
+local stopAll = false
+local activeThreads = {}
+
+local function StopAllScripts()
+    stopAll = true
+    for _, thread in pairs(activeThreads) do
+        pcall(function() task.cancel(thread) end)
+    end
+    activeThreads = {}
+    warn("ALL SCRIPTS STOPPED")
+end
+
+local function CreateButton(parent, name, callback)
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(1, -10, 0, 30)
+    btn.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
+    btn.Text = name
+    btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    btn.TextSize = 16
+    btn.Font = Enum.Font.SourceSansBold
+    btn.Parent = parent
+    
+    btn.MouseButton1Click:Connect(function()
+        stopAll = false
+        callback()
+    end)
+end
+
+-- 1. Regular Dummy Teleport + Farm
+CreateButton(ScrollFrame, "Teleport + Farm (Regular)", function()
+    task.spawn(function()
+        local map = Workspace:WaitForChild("MAP", 9e9)
+        local dummies = map:WaitForChild("dummies", 9e9)
+        local target = dummies:GetChildren()[3]
+        local humanoid = target:WaitForChild("Humanoid", 9e9)
+        local remote = ReplicatedStorage:WaitForChild("jdskhfsIIIllliiIIIdchgdIiIIIlIlIli", 9e9)
+        
+        local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+        local root = char:WaitForChild("HumanoidRootPart")
+        root.CFrame = target.HumanoidRootPart.CFrame * CFrame.new(0, 5, 0)
+        
+        while not stopAll do
+            if humanoid and humanoid.Parent and humanoid.Health > 0 then
+                pcall(function() remote:FireServer(humanoid, 1) end)
+            end
+            wait(math.random(4, 7)/10)
+        end
+    end)
+end)
+
+-- 2. 5k Dummy Teleport + Farm
+CreateButton(ScrollFrame, "Teleport + Farm (5k Dummy)", function()
+    task.spawn(function()
+        local map = Workspace:WaitForChild("MAP", 9e9)
+        local dummies = map:WaitForChild("5k_dummies", 9e9)
+        local target = dummies:GetChildren()[2]
+        local humanoid = target:WaitForChild("Humanoid", 9e9)
+        local remote = ReplicatedStorage:WaitForChild("jdskhfsIIIllliiIIIdchgdIiIIIlIlIli", 9e9)
+        
+        local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+        local root = char:WaitForChild("HumanoidRootPart")
+        root.CFrame = target.HumanoidRootPart.CFrame * CFrame.new(0, 5, 0)
+        
+        while not stopAll do
+            if humanoid and humanoid.Parent and humanoid.Health > 0 then
+                pcall(function() remote:FireServer(humanoid, 2) end)
+            end
+            wait(math.random(4, 7)/10)
+        end
+    end)
+end)
+
+-- 3. Fireball Farm
+CreateButton(ScrollFrame, "Fireball Farm", function()
+    task.spawn(function()
+        local remote = ReplicatedStorage:WaitForChild("SkillsInRS", 9e9):WaitForChild("RemoteEvent", 9e9)
+        local pos = Vector3.new(-132.9176483154297, 646.5296630859375, 576.3167724609375)
+        while not stopAll do
+            pcall(function() remote:FireServer(pos, "NewFireball") end)
+            wait(math.random(15, 25)/10)
+        end
+    end)
+end)
+
+-- 4. Lightning Ball Farm
+CreateButton(ScrollFrame, "Lightning Ball Farm", function()
+    task.spawn(function()
+        local remote = ReplicatedStorage:WaitForChild("SkillsInRS", 9e9):WaitForChild("RemoteEvent", 9e9)
+        local pos = Vector3.new(-102.3226547241211, 646.8177490234375, 588.9207153320312)
+        while not stopAll do
+            pcall(function() remote:FireServer(pos, "NewLightningball") end)
+            wait(math.random(20, 30)/10)
+        end
+    end)
+end)
+
+-- 5. Coin Farm
+CreateButton(ScrollFrame, "Coin Farm", function()
+    task.spawn(function()
+        local remote = ReplicatedStorage:WaitForChild("Events", 9e9):WaitForChild("CoinEvent", 9e9)
+        while not stopAll do
+            pcall(function() remote:FireServer() end)
+            wait(math.random(30, 45)/10)
+        end
+    end)
+end)
+
+-- 6. Anti-AFK
+CreateButton(ScrollFrame, "Anti-AFK", function()
+    task.spawn(function()
+        local VirtualUser = game:GetService("VirtualUser")
+        while not stopAll do
+            wait(math.random(180, 300))
+            if not stopAll then
+                pcall(function() VirtualUser:CaptureController(); VirtualUser:ClickButton2(Vector2.new()) end)
+            end
+        end
+    end)
+end)
+
+-- 7. FPS Boost
+CreateButton(ScrollFrame, "FPS Boost (Gray Mode)", function()
+    task.spawn(function()
+        local Lighting = game:GetService("Lighting")
+        Lighting.GlobalShadows = false
+        for _, v in pairs(Workspace:GetDescendants()) do
+            if v:IsA("BasePart") then
+                v.Material = Enum.Material.SmoothPlastic
+                v.Color = Color3.fromRGB(128, 128, 128)
+            end
+        end
+        warn("FPS Boost Applied")
+    end)
+end)
+
+-- 8. STOP ALL
+local stopBtn = Instance.new("TextButton")
+stopBtn.Size = UDim2.new(1, -10, 0, 40)
+stopBtn.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
+stopBtn.Text = "STOP ALL SCRIPTS"
+stopBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+stopBtn.TextSize = 20
+stopBtn.Font = Enum.Font.SourceSansBold
+stopBtn.Parent = ScrollFrame
+stopBtn.MouseButton1Click:Connect(StopAllScripts)
+
+print("Farm Hub GUI Loaded. Check your screen.")   
