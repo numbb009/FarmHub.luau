@@ -175,24 +175,41 @@ end)
 -- 2. 5k Dummy Teleport + Farm
 CreateButton(ScrollFrame, "Teleport + Farm (5k Dummy)", function()
     task.spawn(function()
-        local map = Workspace:WaitForChild("MAP", 9e9)
-        local dummiesFolder = map:WaitForChild("5k_dummies", 9e9)
-        local remote = ReplicatedStorage:WaitForChild("jdskhfsIIIllliiIIIdchgdIiIIIlIlIli", 9e9)
+        -- 1. Use the same safe pathing as your working Regular script
+        local map = Workspace:FindFirstChild("MAP")
+        if not map then warn(" MAP not found"); return end
+        
+        -- Do NOT WaitForChild the folder indefinitely; check if it exists first
+        local dummiesFolder = map:FindFirstChild("5k_dummies")
+        if not dummiesFolder then 
+            warn(" 5k_dummies folder missing! Checking for updates...")
+            -- Fallback: Wait a few seconds for it to load dynamically
+            dummiesFolder = map:WaitForChild("5k_dummies", 5)
+            if not dummiesFolder then warn(" Still cannot find 5k_dummies!"); return end
+        end
+        
+        local remote = ReplicatedStorage:FindFirstChild("jdskhfsIIIllliiIIIdchgdIiIIIlIlIli")
+        if not remote then warn(" Remote Event not found!"); return end
+        
         local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
-        local root = char:WaitForChild("HumanoidRootPart")
+        local root = char:FindFirstChild("HumanoidRootPart")
+        if not root then return end
 
-        -- Helper to find the best 5k dummy
+        -- 2. Helper Function (Identical logic to before)
         local function GetBest5kDummy()
             local bestTarget = nil
             local shortestDist = math.huge
             local playerPos = root.Position
+
+            -- Safety check: Ensure folder still exists
+            if not dummiesFolder or not dummiesFolder.Parent then return nil end
 
             for _, dummy in pairs(dummiesFolder:GetChildren()) do
                 if dummy:FindFirstChild("Humanoid") and dummy:FindFirstChild("HumanoidRootPart") then
                     local hum = dummy.Humanoid
                     local rootPart = dummy.HumanoidRootPart
                     
-                    -- Check if it is actually a 5k dummy
+                    -- Strict 5k Filter
                     if hum.Health > 0 and hum.MaxHealth >= 4900 and hum.MaxHealth <= 5100 then
                         local dist = (playerPos - rootPart.Position).Magnitude
                         if dist < shortestDist then
@@ -201,35 +218,50 @@ CreateButton(ScrollFrame, "Teleport + Farm (5k Dummy)", function()
                         end
                     end
                 end
-            end -- End of for loop
+            end
             return bestTarget
-        end -- End of GetBest5kDummy function
-
-        -- Initial Teleport
-        local startTarget = GetBest5kDummy()
-        if startTarget then
-            root.CFrame = startTarget.HumanoidRootPart.CFrame * CFrame.new(0, 5, 0)
-        else
-            warn("No 5k dummies found to teleport to!")
-            return
         end
 
+        -- 3. Wait for a Dummy to Spawn (Crucial Fix)
+        -- The folder might exist but be empty initially. Wait for a valid target.
+        local startTarget = nil
+        for i = 1, 20 do -- Wait up to ~2-4 seconds
+            startTarget = GetBest5kDummy()
+            if startTarget then break end
+            task.wait(0.2)
+        end
+
+        if not startTarget then
+            warn(" No 5k dummies spawned in time!"); 
+            return 
+        end
+
+        -- 4. Teleport
+        if startTarget:FindFirstChild("HumanoidRootPart") then
+            root.CFrame = startTarget.HumanoidRootPart.CFrame * CFrame.new(0, 5, 0)
+            task.wait(0.5)
+        end
+
+        -- 5. Farming Loop
         while not stopAll do
+            if not char or not char.Parent then
+                char = LocalPlayer.CharacterAdded:Wait()
+                root = char:WaitForChild("HumanoidRootPart")
+            end
+            
             local currentTarget = GetBest5kDummy()
 
-            if currentTarget then
+            if currentTarget and currentTarget:FindFirstChild("Humanoid") then
                 local hum = currentTarget.Humanoid
-                pcall(function() 
-                    remote:FireServer(hum, 2) 
-                end)
-            else
-                task.wait(1)
+                if hum.Health > 0 then
+                    pcall(function() remote:FireServer(hum, 2) end)
+                end
             end
             
             task.wait(math.random(4, 7)/10)
-        end -- End of while loop
-    end) -- End of task.spawn
-end) -- End of CreateButton function   
+        end
+    end)
+end)   
 -- 3. Fireball Farm
 CreateButton(ScrollFrame, "Fireball Farm", function()
     task.spawn(function()
