@@ -192,8 +192,7 @@ CreateButton(ScrollFrame, "Teleport + Farm (5k Dummy)", function()
                     local hum = dummy.Humanoid
                     local rootPart = dummy.HumanoidRootPart
                     
-                    -- FIX: Check if it is actually a 5k dummy (Health between 4900-5100)
-                    -- This ignores regular dummies even if they are in the folder or closer
+                    -- Check if it is actually a 5k dummy
                     if hum.Health > 0 and hum.MaxHealth >= 4900 and hum.MaxHealth <= 5100 then
                         local dist = (playerPos - rootPart.Position).Magnitude
                         if dist < shortestDist then
@@ -202,11 +201,11 @@ CreateButton(ScrollFrame, "Teleport + Farm (5k Dummy)", function()
                         end
                     end
                 end
-            end
+            end -- End of for loop
             return bestTarget
-        end
+        end -- End of GetBest5kDummy function
 
-        -- Initial Teleport to the first valid 5k dummy found
+        -- Initial Teleport
         local startTarget = GetBest5kDummy()
         if startTarget then
             root.CFrame = startTarget.HumanoidRootPart.CFrame * CFrame.new(0, 5, 0)
@@ -220,46 +219,17 @@ CreateButton(ScrollFrame, "Teleport + Farm (5k Dummy)", function()
 
             if currentTarget then
                 local hum = currentTarget.Humanoid
-                -- Fire remote at the dynamically selected 5k dummy
                 pcall(function() 
                     remote:FireServer(hum, 2) 
                 end)
             else
-                -- Optional: If no 5k dummies are alive, wait a bit before checking again
                 task.wait(1)
             end
             
             task.wait(math.random(4, 7)/10)
-        end
-    end)
-end)   
-        -- Initial Teleport to the first valid 5k dummy found
-        local startTarget = GetBest5kDummy()
-        if startTarget then
-            root.CFrame = startTarget.HumanoidRootPart.CFrame * CFrame.new(0, 5, 0)
-        else
-            warn("No 5k dummies found to teleport to!")
-            return
-        end
-
-        while not stopAll do
-            local currentTarget = GetBest5kDummy()
-
-            if currentTarget then
-                local hum = currentTarget.Humanoid
-                -- Fire remote at the dynamically selected 5k dummy
-                pcall(function() 
-                    remote:FireServer(hum, 2) 
-                end)
-            else
-                -- Optional: If no 5k dummies are alive, wait a bit before checking again
-                task.wait(1)
-            end
-            
-            task.wait(math.random(4, 7)/10)
-        end
-    end)
-end)   
+        end -- End of while loop
+    end) -- End of task.spawn
+end) -- End of CreateButton function   
 -- 3. Fireball Farm
 CreateButton(ScrollFrame, "Fireball Farm", function()
     task.spawn(function()
