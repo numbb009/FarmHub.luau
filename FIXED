@@ -175,89 +175,49 @@ end)
 -- 2. 5k Dummy Teleport + Farm
 CreateButton(ScrollFrame, "Teleport + Farm (5k Dummy)", function()
     task.spawn(function()
-        -- 1. Use the same safe pathing as your working Regular script
-        local map = Workspace:FindFirstChild("MAP")
-        if not map then warn(" MAP not found"); return end
-        
-        -- Do NOT WaitForChild the folder indefinitely; check if it exists first
-        local dummiesFolder = map:FindFirstChild("5k_dummies")
-        if not dummiesFolder then 
-            warn(" 5k_dummies folder missing! Checking for updates...")
-            -- Fallback: Wait a few seconds for it to load dynamically
-            dummiesFolder = map:WaitForChild("5k_dummies", 5)
-            if not dummiesFolder then warn(" Still cannot find 5k_dummies!"); return end
-        end
-        
-        local remote = ReplicatedStorage:FindFirstChild("jdskhfsIIIllliiIIIdchgdIiIIIlIlIli")
-        if not remote then warn(" Remote Event not found!"); return end
+        -- 1. Get Paths (Same as regular script)
+        local map = Workspace:WaitForChild("MAP", 10)
+        local dummiesFolder = map:WaitForChild("5k_dummies", 10)
+        local remote = ReplicatedStorage:WaitForChild("jdskhfsIIIllliiIIIdchgdIiIIIlIlIli", 10)
         
         local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
-        local root = char:FindFirstChild("HumanoidRootPart")
-        if not root then return end
+        local root = char:WaitForChild("HumanoidRootPart")
 
-        -- 2. Helper Function (Identical logic to before)
-        local function GetBest5kDummy()
-            local bestTarget = nil
-            local shortestDist = math.huge
-            local playerPos = root.Position
-
-            -- Safety check: Ensure folder still exists
-            if not dummiesFolder or not dummiesFolder.Parent then return nil end
-
-            for _, dummy in pairs(dummiesFolder:GetChildren()) do
-                if dummy:FindFirstChild("Humanoid") and dummy:FindFirstChild("HumanoidRootPart") then
-                    local hum = dummy.Humanoid
-                    local rootPart = dummy.HumanoidRootPart
-                    
-                    -- Strict 5k Filter
-                    if hum.Health > 0 and hum.MaxHealth >= 4900 and hum.MaxHealth <= 5100 then
-                        local dist = (playerPos - rootPart.Position).Magnitude
-                        if dist < shortestDist then
-                            shortestDist = dist
-                            bestTarget = dummy
-                        end
+        -- 2. Simple Helper to find a valid 5k dummy
+        local function Get5kTarget()
+            for _, v in pairs(dummiesFolder:GetChildren()) do
+                if v:FindFirstChild("Humanoid") and v:FindFirstChild("HumanoidRootPart") then
+                    -- Check specifically for 5k HP
+                    if v.Humanoid.Health > 0 and v.Humanoid.MaxHealth >= 4900 then
+                        return v
                     end
                 end
             end
-            return bestTarget
+            return nil
         end
 
-        -- 3. Wait for a Dummy to Spawn (Crucial Fix)
-        -- The folder might exist but be empty initially. Wait for a valid target.
-        local startTarget = nil
-        for i = 1, 20 do -- Wait up to ~2-4 seconds
-            startTarget = GetBest5kDummy()
-            if startTarget then break end
+        -- 3. Wait for a dummy to actually exist (Prevents crash on empty folder)
+        local target = nil
+        for i = 1, 20 do
+            target = Get5kTarget()
+            if target then break end
             task.wait(0.2)
         end
 
-        if not startTarget then
-            warn(" No 5k dummies spawned in time!"); 
-            return 
-        end
+        if not target then warn("No 5k dummies found!"); return end
 
-        -- 4. Teleport
-        if startTarget:FindFirstChild("HumanoidRootPart") then
-            root.CFrame = startTarget.HumanoidRootPart.CFrame * CFrame.new(0, 5, 0)
-            task.wait(0.5)
-        end
-
-        -- 5. Farming Loop
+        -- 4. Teleport & Farm (Same logic as regular)
+        root.CFrame = target.HumanoidRootPart.CFrame * CFrame.new(0, 5, 0)
+        
         while not stopAll do
-            if not char or not char.Parent then
-                char = LocalPlayer.CharacterAdded:Wait()
-                root = char:WaitForChild("HumanoidRootPart")
+            -- Re-check target in case it dies
+            if not target or not target.Parent or target.Humanoid.Health <= 0 then
+                target = Get5kTarget()
             end
             
-            local currentTarget = GetBest5kDummy()
-
-            if currentTarget and currentTarget:FindFirstChild("Humanoid") then
-                local hum = currentTarget.Humanoid
-                if hum.Health > 0 then
-                    pcall(function() remote:FireServer(hum, 2) end)
-                end
+            if target then
+                pcall(function() remote:FireServer(target.Humanoid, 2) end)
             end
-            
             task.wait(math.random(4, 7)/10)
         end
     end)
