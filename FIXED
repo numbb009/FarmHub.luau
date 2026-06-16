@@ -175,53 +175,72 @@ end)
 -- 2. 5k Dummy Teleport + Farm
 CreateButton(ScrollFrame, "Teleport + Farm (5k Dummy)", function()
     task.spawn(function()
-        -- 1. Get Paths (Same as regular script)
-        local map = Workspace:WaitForChild("MAP", 10)
-        local dummiesFolder = map:WaitForChild("5k_dummies", 10)
-        local remote = ReplicatedStorage:WaitForChild("jdskhfsIIIllliiIIIdchgdIiIIIlIlIli", 10)
+        -- 1. Setup Paths
+        local map = workspace:FindFirstChild("MAP")
+        if not map then return end
+        
+        local dummiesFolder = map:FindFirstChild("5k_dummies")
+        if not dummiesFolder then return end
+        
+        local remote = game:GetService("ReplicatedStorage"):FindFirstChild("jdskhfsIIIllliiIIIdchgdIiIIIlIlIli")
+        if not remote then return end
         
         local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
-        local root = char:WaitForChild("HumanoidRootPart")
+        local root = char:FindFirstChild("HumanoidRootPart")
+        if not root then return end
 
-        -- 2. Simple Helper to find a valid 5k dummy
-        local function Get5kTarget()
-            for _, v in pairs(dummiesFolder:GetChildren()) do
-                if v:FindFirstChild("Humanoid") and v:FindFirstChild("HumanoidRootPart") then
-                    -- Check specifically for 5k HP
-                    if v.Humanoid.Health > 0 and v.Humanoid.MaxHealth >= 4900 then
-                        return v
-                    end
+        -- 2. Configuration: Change this number if the dummy moves!
+        -- Your snippet used [4]. Try 1, 2, 3, or 4 if one doesn't work.
+        local dummyIndex = 4 
+        
+        -- 3. Wait for the specific dummy to load
+        local targetDummy = nil
+        for i = 1, 50 do -- Wait up to 5 seconds
+            local children = dummiesFolder:GetChildren()
+            if #children >= dummyIndex then
+                targetDummy = children[dummyIndex]
+                if targetDummy:FindFirstChild("Humanoid") and targetDummy:FindFirstChild("HumanoidRootPart") then
+                    break
                 end
             end
-            return nil
+            task.wait(0.1)
         end
 
-        -- 3. Wait for a dummy to actually exist (Prevents crash on empty folder)
-        local target = nil
-        for i = 1, 20 do
-            target = Get5kTarget()
-            if target then break end
-            task.wait(0.2)
+        if not targetDummy then
+            warn("ERROR: Dummy index " .. dummyIndex .. " not found! Try changing the index number.")
+            return
         end
 
-        if not target then warn("No 5k dummies found!"); return end
+        local targetHumanoid = targetDummy.Humanoid
+        local targetRoot = targetDummy.HumanoidRootPart
 
-        -- 4. Teleport & Farm (Same logic as regular)
-        root.CFrame = target.HumanoidRootPart.CFrame * CFrame.new(0, 5, 0)
-        
+        -- 4. Teleport
+        root.CFrame = targetRoot.CFrame * CFrame.new(0, 5, 0)
+        task.wait(0.2)
+
+        -- 5. Auto-Clicker Loop
         while not stopAll do
-            -- Re-check target in case it dies
-            if not target or not target.Parent or target.Humanoid.Health <= 0 then
-                target = Get5kTarget()
+            -- Re-check if dummy is still valid
+            if not targetDummy.Parent or targetHumanoid.Health <= 0 then
+                -- Optional: Try to find a new dummy if this one dies
+                warn("Target died! Stopping.")
+                break 
             end
+
+            -- Fire the exact same arguments as your working snippet
+            local args = {
+                [1] = targetHumanoid,
+                [2] = 1
+            }
             
-            if target then
-                pcall(function() remote:FireServer(target.Humanoid, 2) end)
-            end
+            pcall(function()
+                remote:FireServer(unpack(args))
+            end)
+            
             task.wait(math.random(4, 7)/10)
         end
     end)
-end)   
+end)      
 -- 3. Fireball Farm
 CreateButton(ScrollFrame, "Fireball Farm", function()
     task.spawn(function()
