@@ -32,22 +32,6 @@ local function GetCurrentDummyFolder()
         return map:FindFirstChild("dummies")
     end
 end   
-
-    -- Define the center position of your 5k dummy area (Get these coordinates from your map)
-    local k5AreaCenter = Vector3.new(X, Y, Z) -- Replace X, Y, Z with actual coordinates
-    local distanceToK5 = (root.Position - k5AreaCenter).Magnitude
-
-    -- If you're within 50 studs of the 5k area, use 5k_dummies
-    if distanceToK5 < 50 then
-        local map = Workspace:FindFirstChild("MAP")
-        return map and map:FindFirstChild("5k_dummies")
-    else
-        -- Otherwise, use the regular dummies
-        local map = Workspace:FindFirstChild("MAP")
-        return map and map:FindFirstChild("dummies")
-    end
-end   
-
 -- Create UI Elements
 local ScreenGui = Instance.new("ScreenGui")
 local MainFrame = Instance.new("Frame")
