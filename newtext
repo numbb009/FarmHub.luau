@@ -57,7 +57,7 @@ MinimizeButton.Parent = MainFrame
 -- Create Minimized Icon (Hidden initially)
 local MinimizedIcon = Instance.new("ImageButton")
 MinimizedIcon.Name = "MinimizedIcon"
-MinimizedIcon.Image = "http://www.roblox.com/asset?id=2483186"
+MinimizedIcon.Image = "rbxassetid://11176073582"
 MinimizedIcon.ImageColor3 = Color3.fromRGB(130, 0, 0)
 MinimizedIcon.BackgroundTransparency = 1
 MinimizedIcon.Size = UDim2.new(0, 30, 0, 30)
