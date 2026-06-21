@@ -40,6 +40,25 @@ local LevelLabel = Instance.new("TextLabel")
 local ScrollFrame = Instance.new("ScrollingFrame")
 local UIListLayout = Instance.new("UIListLayout")
 
+-- Create Close Button (X)
+local CloseButton = Instance.new("TextButton")
+CloseButton.Name = "CloseButton"
+CloseButton.Text = "X"
+CloseButton.TextSize = 18
+CloseButton.Font = Enum.Font.SourceSansBold
+CloseButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+CloseButton.BackgroundColor3 = Color3.fromRGB(100, 0, 0)
+CloseButton.BorderSizePixel = 0
+CloseButton.Size = UDim2.new(0, 25, 0, 25)
+CloseButton.Position = UDim2.new(1, -30, 0, 5) -- Top-right corner of MainFrame
+CloseButton.ZIndex = 2
+CloseButton.Parent = MainFrame
+
+-- Close Button Functionality
+CloseButton.MouseButton1Click:Connect(function()
+    ScreenGui.Enabled = false
+end)   
+
 -- UI Configuration
 ScreenGui.Name = "FarmHubNative"
 ScreenGui.ResetOnSpawn = false
