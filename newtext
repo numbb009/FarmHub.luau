@@ -40,28 +40,43 @@ local LevelLabel = Instance.new("TextLabel")
 local ScrollFrame = Instance.new("ScrollingFrame")
 local UIListLayout = Instance.new("UIListLayout")
 
--- Create Toggle Button (X)
-local ToggleButton = Instance.new("TextButton")
-ToggleButton.Name = "ToggleButton"
-ToggleButton.Text = "X"
-ToggleButton.TextSize = 18
-ToggleButton.Font = Enum.Font.SourceSansBold
-ToggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-ToggleButton.BackgroundColor3 = Color3.fromRGB(100, 0, 0)
-ToggleButton.BorderSizePixel = 0
-ToggleButton.Size = UDim2.new(0, 25, 0, 25)
-ToggleButton.Position = UDim2.new(1, -30, 0, 5)
-ToggleButton.ZIndex = 2
-ToggleButton.Parent = MainFrame
+-- Create Minimize Button
+local MinimizeButton = Instance.new("TextButton")
+MinimizeButton.Name = "MinimizeButton"
+MinimizeButton.Text = "X"
+MinimizeButton.TextSize = 18
+MinimizeButton.Font = Enum.Font.SourceSansBold
+MinimizeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+MinimizeButton.BackgroundColor3 = Color3.fromRGB(100, 0, 0)
+MinimizeButton.BorderSizePixel = 0
+MinimizeButton.Size = UDim2.new(0, 25, 0, 25)
+MinimizeButton.Position = UDim2.new(1, -30, 0, 5)
+MinimizeButton.ZIndex = 2
+MinimizeButton.Parent = MainFrame
 
--- Toggle Button Functionality
-ToggleButton.MouseButton1Click:Connect(function()
-    ScreenGui.Enabled = not ScreenGui.Enabled
-    ToggleButton.Text = ScreenGui.Enabled and "X" or "O" -- Optional: Change text to show state
-end)   
--- Close Button Functionality
-CloseButton.MouseButton1Click:Connect(function()
-    ScreenGui.Enabled = false
+-- Create Minimized Icon (Hidden initially)
+local MinimizedIcon = Instance.new("ImageButton")
+MinimizedIcon.Name = "MinimizedIcon"
+MinimizedIcon.Image = "http://www.roblox.com/asset?id=2483186"
+MinimizedIcon.ImageColor3 = Color3.fromRGB(130, 0, 0)
+MinimizedIcon.BackgroundTransparency = 1
+MinimizedIcon.Size = UDim2.new(0, 30, 0, 30)
+MinimizedIcon.Position = UDim2.new(0, 10, 0, 10)
+MinimizedIcon.Visible = false -- Start hidden
+MinimizedIcon.ZIndex = 10
+MinimizedIcon.Parent = ScreenGui
+
+-- Minimize/Restore Functionality
+MinimizeButton.MouseButton1Click:Connect(function()
+    MainFrame.Visible = false
+    MinimizeButton.Visible = false
+    MinimizedIcon.Visible = true
+end)
+
+MinimizedIcon.MouseButton1Click:Connect(function()
+    MainFrame.Visible = true
+    MinimizeButton.Visible = true
+    MinimizedIcon.Visible = false
 end)   
 
 -- UI Configuration
