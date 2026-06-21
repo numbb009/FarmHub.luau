@@ -8,6 +8,28 @@ local Workspace = game:GetService("Workspace")
 local UserInputService = game:GetService("UserInputService") -- Added for dragging
 local LocalPlayer = Players.LocalPlayer
 
+-- zone detection for fireball and lightning ball
+local function GetCurrentDummyFolder()
+    local char = LocalPlayer.Character
+    if not char then return end
+    local root = char:FindFirstChild("HumanoidRootPart")
+    if not root then return end
+
+    -- Define the center position of your 5k dummy area (Get these coordinates from your map)
+    local k5AreaCenter = Vector3.new(X, Y, Z) -- Replace X, Y, Z with actual coordinates
+    local distanceToK5 = (root.Position - k5AreaCenter).Magnitude
+
+    -- If you're within 50 studs of the 5k area, use 5k_dummies
+    if distanceToK5 < 50 then
+        local map = Workspace:FindFirstChild("MAP")
+        return map and map:FindFirstChild("5k_dummies")
+    else
+        -- Otherwise, use the regular dummies
+        local map = Workspace:FindFirstChild("MAP")
+        return map and map:FindFirstChild("dummies")
+    end
+end   
+
 -- Create UI Elements
 local ScreenGui = Instance.new("ScreenGui")
 local MainFrame = Instance.new("Frame")
@@ -245,25 +267,76 @@ end)
 CreateButton(ScrollFrame, "Fireball Farm", function()
     task.spawn(function()
         local remote = ReplicatedStorage:WaitForChild("SkillsInRS", 9e9):WaitForChild("RemoteEvent", 9e9)
-        local pos = Vector3.new(-132.9176483154297, 646.5296630859375, 576.3167724609375)
+        local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+        local root = char:WaitForChild("HumanoidRootPart")
+
         while not stopAll do
-            pcall(function() remote:FireServer(pos, "NewFireball") end)
+            -- Get the correct dummy folder (dummies or 5k_dummies) based on location
+            local dummies = GetCurrentDummyFolder()
+            if not dummies then task.wait(0.5) continue end
+
+            -- Find the nearest dummy in the folder
+            local nearest = nil
+            local shortestDist = math.huge
+            for _, dummy in pairs(dummies:GetChildren()) do
+                local hrp = dummy:FindFirstChild("HumanoidRootPart")
+                if hrp then
+                    local dist = (hrp.Position - root.Position).Magnitude
+                    if dist < shortestDist then
+                        shortestDist = dist
+                        nearest = dummy
+                    end
+                end
+            end
+
+            -- Fire at the nearest dummy
+            if nearest and nearest:FindFirstChild("HumanoidRootPart") then
+                pcall(function() 
+                    remote:FireServer(nearest.HumanoidRootPart.Position, "NewFireball") 
+                end)
+            end
+
             wait(math.random(15, 25)/10)
         end
     end)
-end)
-
+end)   
 -- 4. Lightning Ball Farm
 CreateButton(ScrollFrame, "Lightning Ball Farm", function()
     task.spawn(function()
         local remote = ReplicatedStorage:WaitForChild("SkillsInRS", 9e9):WaitForChild("RemoteEvent", 9e9)
-        local pos = Vector3.new(-102.3226547241211, 646.8177490234375, 588.9207153320312)
+        local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+        local root = char:WaitForChild("HumanoidRootPart")
+
         while not stopAll do
-            pcall(function() remote:FireServer(pos, "NewLightningball") end)
+            -- Get the correct dummy folder based on location
+            local dummies = GetCurrentDummyFolder()
+            if not dummies then task.wait(0.5) continue end
+
+            -- Find the nearest dummy
+            local nearest = nil
+            local shortestDist = math.huge
+            for _, dummy in pairs(dummies:GetChildren()) do
+                local hrp = dummy:FindFirstChild("HumanoidRootPart")
+                if hrp then
+                    local dist = (hrp.Position - root.Position).Magnitude
+                    if dist < shortestDist then
+                        shortestDist = dist
+                        nearest = dummy
+                    end
+                end
+            end
+
+            -- Fire at the nearest dummy
+            if nearest and nearest:FindFirstChild("HumanoidRootPart") and nearest.Humanoid.Health > 0 then
+                pcall(function() 
+                    remote:FireServer(nearest.HumanoidRootPart.Position, "NewLightningball") 
+                end)
+            end
+
             wait(math.random(20, 30)/10)
         end
     end)
-end)
+end)   
 
 -- 5. Coin Farm
 CreateButton(ScrollFrame, "Coin Farm", function()
