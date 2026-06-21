@@ -15,6 +15,24 @@ local function GetCurrentDummyFolder()
     local root = char:FindFirstChild("HumanoidRootPart")
     if not root then return end
 
+    -- Coordinates from your image
+    local k5AreaCenter = Vector3.new(-79, 593, 814)
+    local regularAreaCenter = Vector3.new(-131, 642, 575)
+
+    local distanceToK5 = (root.Position - k5AreaCenter).Magnitude
+    local distanceToRegular = (root.Position - regularAreaCenter).Magnitude
+
+    local map = Workspace:FindFirstChild("MAP")
+    if not map then return end
+
+    -- Return the folder for the closest area
+    if distanceToK5 < distanceToRegular then
+        return map:FindFirstChild("5k_dummies")
+    else
+        return map:FindFirstChild("dummies")
+    end
+end   
+
     -- Define the center position of your 5k dummy area (Get these coordinates from your map)
     local k5AreaCenter = Vector3.new(X, Y, Z) -- Replace X, Y, Z with actual coordinates
     local distanceToK5 = (root.Position - k5AreaCenter).Magnitude
