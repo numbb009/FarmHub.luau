@@ -555,7 +555,116 @@ CreateButton(ScrollFrame, "FPS Boost (Gray Mode)", function()
         warn("FPS Boost Applied")
     end)
 end)
+-- ==========================================
+-- NEW CUSTOM UTILITIES
+-- ==========================================
 
+-- Fireball Auto-Hit Target
+local fireballTargetPlayer = nil
+
+CreateButton(ScrollFrame, "Fireball Hit", function()
+    local Mouse = LocalPlayer:GetMouse()
+    local remote = ReplicatedStorage:WaitForChild("SkillsInRS", 9e9):WaitForChild("RemoteEvent", 9e9)
+    
+    -- Pick a target by clicking on their character model
+    TitleLabel.Text = "CLICK A TARGET..."
+    local clickConnection
+    clickConnection = Mouse.Button1Down:Connect(function()
+        local target = Mouse.Target
+        if target and target.Parent then
+            local model = target.Parent:IsA("Accessory") and target.Parent.Parent or target.Parent
+            local targetCharPlayer = Players:GetPlayerFromCharacter(model)
+            
+            if targetCharPlayer then
+                fireballTargetPlayer = targetCharPlayer
+                TitleLabel.Text = "TARGET: " .. fireballTargetPlayer.DisplayName
+            else
+                TitleLabel.Text = "FARM HUB"
+            end
+        end
+        clickConnection:Disconnect()
+    end)
+
+    -- Auto-hit execution loop
+    task.spawn(function()
+        while not stopAll do
+            if fireballTargetPlayer and fireballTargetPlayer.Character then
+                local tChar = fireballTargetPlayer.Character
+                local tHum = tChar:FindFirstChildOfClass("Humanoid")
+                local tRoot = tChar:FindFirstChild("HumanoidRootPart")
+
+                -- Stop targeting if player dies, leaves, or loses all health
+                if not tHum or tHum.Health <= 0 then
+                    warn("Target lost or low health. Stopping Fireball Auto-Hit.")
+                    fireballTargetPlayer = nil
+                    TitleLabel.Text = "FARM HUB"
+                    break
+                end
+
+                if tRoot then
+                    pcall(function()
+                        remote:FireServer(tRoot.Position, "NewFireball")
+                    end)
+                end
+            end
+            task.wait(math.random(15, 25) / 10)
+        end
+    end)
+end)
+
+-- Hitbox Visualizer (Research Tool)
+local hitboxesActive = false
+CreateButton(ScrollFrame, "Toggle Hitboxes", function()
+    hitboxesActive = not hitboxesActive
+    
+    for _, player in pairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and player.Character then
+            local hrp = player.Character:FindFirstChild("HumanoidRootPart")
+            if hrp then
+                if hitboxesActive then
+                    hrp.Size = Vector3.new(10, 10, 10)
+                    hrp.Transparency = 0.7
+                    hrp.Color = Color3.fromRGB(255, 0, 0)
+                    hrp.Material = Enum.Material.ForceField
+                    hrp.CanCollide = false
+                else
+                    hrp.Size = Vector3.new(2, 2, 1)
+                    hrp.Transparency = 1
+                end
+            end
+        end
+    end
+end)
+
+-- See Avatars Behind Walls (ESP)
+local espActive = false
+CreateButton(ScrollFrame, "Toggle Wall ESP", function()
+    espActive = not espActive
+    
+    for _, player in pairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and player.Character then
+            local existingHighlight = player.Character:FindFirstChild("ESPHighlight")
+            
+            if espActive then
+                if not existingHighlight then
+                    local highlight = Instance.new("Highlight")
+                    highlight.Name = "ESPHighlight"
+                    highlight.Adornee = player.Character
+                    highlight.FillColor = Theme.Accent
+                    highlight.FillTransparency = 0.5
+                    highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
+                    highlight.OutlineTransparency = 0
+                    highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+                    highlight.Parent = player.Character
+                end
+            else
+                if existingHighlight then
+                    existingHighlight:Destroy()
+                end
+            end
+        end
+    end
+end)
 -- 8. STOP ALL (distinct solid-red style, no hover fade)
 local stopBtn = Instance.new("TextButton")
 stopBtn.Size = UDim2.new(1, 0, 0, 40)
