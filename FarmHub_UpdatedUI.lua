@@ -153,37 +153,6 @@ TitleLabel.Parent = TitleBar
 TitleLabel.Active = true
 TitleLabel.Selectable = true
 
--- Create Minimize Button
-local MinimizeButton = Instance.new("TextButton")
-MinimizeButton.Name = "MinimizeButton"
-MinimizeButton.Text = "—"
-MinimizeButton.TextSize = 18
-MinimizeButton.Font = Enum.Font.GothamBold
-MinimizeButton.TextColor3 = Theme.Text
-MinimizeButton.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-MinimizeButton.BackgroundTransparency = 0.9
-MinimizeButton.BorderSizePixel = 0
-MinimizeButton.Size = UDim2.new(0, 28, 0, 28)
-MinimizeButton.Position = UDim2.new(1, -36, 0.5, -14)
-MinimizeButton.ZIndex = 2
-MinimizeButton.Parent = TitleBar
-AddCorner(MinimizeButton, UDim.new(1, 0))
-
--- Create Minimized Icon (Hidden initially)
-local MinimizedIcon = Instance.new("ImageButton")
-MinimizedIcon.Name = "MinimizedIcon"
-MinimizedIcon.Image = "rbxassetid://11176073582"
-MinimizedIcon.ImageColor3 = Theme.Accent
-MinimizedIcon.BackgroundColor3 = Theme.Background
-MinimizedIcon.BackgroundTransparency = 0.1
-MinimizedIcon.Size = UDim2.new(0, 42, 0, 42)
-MinimizedIcon.Position = UDim2.new(0, 20, 0, 20)
-MinimizedIcon.Visible = false
-MinimizedIcon.ZIndex = 10
-MinimizedIcon.Parent = ScreenGui
-AddCorner(MinimizedIcon, UDim.new(1, 0))
-AddStroke(MinimizedIcon, Theme.Accent, 1.5, 0.2)
-
 -- Minimize/Restore Functionality (with a tiny tween for polish)
 local uiVisible = true
 
@@ -191,7 +160,6 @@ local function SetUIVisible(visible)
     uiVisible = visible
     MainFrame.Visible = visible
     Shadow.Visible = visible
-    MinimizedIcon.Visible = not visible
 end
 
 local function ToggleUI()
