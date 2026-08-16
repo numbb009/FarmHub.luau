@@ -1,0 +1,668 @@
+-- ALL-IN-ONE FARM clicker (Native UI - Red Theme + Draggable + Modern Polish)
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Workspace = game:GetService("Workspace")
+local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
+local LocalPlayer = Players.LocalPlayer
+
+-- zone detection for fireball and lightning ball
+local function GetCurrentDummyFolder()
+    local char = LocalPlayer.Character
+    if not char then return end
+    local root = char:FindFirstChild("HumanoidRootPart")
+    if not root then return end
+
+    local k5AreaCenter = Vector3.new(-79, 593, 814)
+    local regularAreaCenter = Vector3.new(-131, 642, 575)
+
+    local distanceToK5 = (root.Position - k5AreaCenter).Magnitude
+    local distanceToRegular = (root.Position - regularAreaCenter).Magnitude
+
+    local map = Workspace:FindFirstChild("MAP")
+    if not map then return end
+
+    if distanceToK5 < distanceToRegular then
+        return map:FindFirstChild("5k_dummies")
+    else
+        return map:FindFirstChild("dummies")
+    end
+end
+
+-- ==========================================
+-- THEME
+-- ==========================================
+local Theme = {
+    Accent      = Color3.fromRGB(220, 40, 40),   -- bright red accent
+    AccentDark  = Color3.fromRGB(120, 10, 10),   -- deep red
+    Background  = Color3.fromRGB(24, 24, 26),    -- near-black frame bg
+    Panel       = Color3.fromRGB(32, 32, 35),    -- scroll frame bg
+    Button      = Color3.fromRGB(44, 44, 48),
+    ButtonHover = Color3.fromRGB(60, 20, 20),
+    Text        = Color3.fromRGB(240, 240, 240),
+    SubText     = Color3.fromRGB(190, 190, 190),
+    Corner      = UDim.new(0, 10),
+    CornerSmall = UDim.new(0, 8),
+}
+
+local function AddCorner(parent, radius)
+    local c = Instance.new("UICorner")
+    c.CornerRadius = radius or Theme.Corner
+    c.Parent = parent
+    return c
+end
+
+local function AddStroke(parent, color, thickness, transparency)
+    local s = Instance.new("UIStroke")
+    s.Color = color or Theme.Accent
+    s.Thickness = thickness or 1
+    s.Transparency = transparency or 0.4
+    s.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+    s.Parent = parent
+    return s
+end
+
+local function AddGradient(parent, colorSequence, rotation)
+    local g = Instance.new("UIGradient")
+    g.Color = colorSequence
+    g.Rotation = rotation or 90
+    g.Parent = parent
+    return g
+end
+
+-- Create UI Elements
+local ScreenGui = Instance.new("ScreenGui")
+local Shadow = Instance.new("ImageLabel")
+local MainFrame = Instance.new("Frame")
+local TitleBar = Instance.new("Frame")
+local TitleLabel = Instance.new("TextLabel")
+local LevelPanel = Instance.new("Frame")
+local LevelLabel = Instance.new("TextLabel")
+local ScrollFrame = Instance.new("ScrollingFrame")
+local UIListLayout = Instance.new("UIListLayout")
+local UIPadding = Instance.new("UIPadding")
+
+-- UI Configuration
+ScreenGui.Name = "FarmHubNative"
+ScreenGui.ResetOnSpawn = false
+ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+ScreenGui.DisplayOrder = 10
+
+-- Drop shadow behind the whole panel
+Shadow.Name = "Shadow"
+Shadow.Image = "rbxassetid://1316045217" -- soft drop shadow asset
+Shadow.ImageColor3 = Color3.fromRGB(0, 0, 0)
+Shadow.ImageTransparency = 0.4
+Shadow.ScaleType = Enum.ScaleType.Slice
+Shadow.SliceCenter = Rect.new(10, 10, 118, 118)
+Shadow.BackgroundTransparency = 1
+Shadow.Size = UDim2.new(1, 40, 1, 40)
+Shadow.Position = UDim2.new(0.5, 0, 0.5, 0)
+Shadow.AnchorPoint = Vector2.new(0.5, 0.5)
+Shadow.ZIndex = 0
+Shadow.Parent = ScreenGui
+
+MainFrame.Size = UDim2.new(0, 300, 0, 450)
+MainFrame.Position = UDim2.new(0.5, -150, 0.5, -225)
+MainFrame.BackgroundColor3 = Theme.Background
+MainFrame.BorderSizePixel = 0
+MainFrame.ClipsDescendants = true
+MainFrame.Parent = ScreenGui
+AddCorner(MainFrame, Theme.Corner)
+AddStroke(MainFrame, Theme.Accent, 1, 0.3)
+
+-- Anchor the shadow to sit exactly behind MainFrame
+Shadow.Position = MainFrame.Position
+MainFrame:GetPropertyChangedSignal("Position"):Connect(function()
+    Shadow.Position = MainFrame.Position
+end)
+Shadow.Size = UDim2.new(MainFrame.Size.X.Scale, MainFrame.Size.X.Offset + 30, MainFrame.Size.Y.Scale, MainFrame.Size.Y.Offset + 30)
+Shadow.AnchorPoint = Vector2.new(0, 0)
+
+-- Title bar with gradient
+TitleBar.Name = "TitleBar"
+TitleBar.Size = UDim2.new(1, 0, 0, 44)
+TitleBar.Position = UDim2.new(0, 0, 0, 0)
+TitleBar.BackgroundColor3 = Theme.AccentDark
+TitleBar.BorderSizePixel = 0
+TitleBar.Parent = MainFrame
+AddCorner(TitleBar, Theme.Corner)
+AddGradient(TitleBar, ColorSequence.new{
+    ColorSequenceKeypoint.new(0, Theme.Accent),
+    ColorSequenceKeypoint.new(1, Theme.AccentDark),
+}, 0)
+
+-- Mask the bottom corners of the title bar so it looks flush with MainFrame
+local TitleBarMask = Instance.new("Frame")
+TitleBarMask.BackgroundColor3 = Theme.AccentDark
+TitleBarMask.BorderSizePixel = 0
+TitleBarMask.Size = UDim2.new(1, 0, 0, 12)
+TitleBarMask.Position = UDim2.new(0, 0, 1, -12)
+TitleBarMask.ZIndex = TitleBar.ZIndex
+TitleBarMask.Parent = TitleBar
+
+TitleLabel.Size = UDim2.new(1, -40, 1, 0)
+TitleLabel.Position = UDim2.new(0, 12, 0, 0)
+TitleLabel.BackgroundTransparency = 1
+TitleLabel.Text = "FARM HUB"
+TitleLabel.TextColor3 = Theme.Text
+TitleLabel.TextSize = 18
+TitleLabel.Font = Enum.Font.GothamBold
+TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
+TitleLabel.Parent = TitleBar
+TitleLabel.Active = true
+TitleLabel.Selectable = true
+
+
+
+
+-- Minimize/Restore Functionality (with a tiny tween for polish)
+local uiVisible = true
+
+local function SetUIVisible(visible)
+    uiVisible = visible
+    MainFrame.Visible = visible
+    Shadow.Visible = visible
+    MinimizedIcon.Visible = not visible
+end
+
+local function ToggleUI()
+    SetUIVisible(not uiVisible)
+end
+
+MinimizeButton.MouseButton1Click:Connect(function()
+    SetUIVisible(false)
+end)
+
+MinimizedIcon.MouseButton1Click:Connect(function()
+    SetUIVisible(true)
+end)
+-- Minimize/Restore Functionality
+local uiVisible = true
+
+local function SetUIVisible(visible)
+    uiVisible = visible
+    MainFrame.Visible = visible
+    Shadow.Visible = visible
+end
+
+local function ToggleUI()
+    SetUIVisible(not uiVisible)
+end
+
+-- ==========================================
+-- KEYBIND TOGGLE
+-- ==========================================
+-- ==========================================
+-- KEYBIND TOGGLE
+-- ==========================================
+-- Change this to whatever key you'd like to use to show/hide the hub.
+-- Full list of options: https://create.roblox.com/docs/reference/engine/enums/KeyCode
+local ToggleKey = Enum.KeyCode.F2
+
+UserInputService.InputBegan:Connect(function(input, gameProcessedEvent)
+    if gameProcessedEvent then return end -- ignore keypresses while typing in a textbox, etc.
+    if input.KeyCode == ToggleKey then
+        ToggleUI()
+    end
+end)
+
+-- Level panel (pill-style stat readout)
+LevelPanel.Size = UDim2.new(1, -20, 0, 32)
+LevelPanel.Position = UDim2.new(0, 10, 0, 52)
+LevelPanel.BackgroundColor3 = Theme.Panel
+LevelPanel.BorderSizePixel = 0
+LevelPanel.Parent = MainFrame
+AddCorner(LevelPanel, Theme.CornerSmall)
+
+LevelLabel.Size = UDim2.new(1, -16, 1, 0)
+LevelLabel.Position = UDim2.new(0, 8, 0, 0)
+LevelLabel.BackgroundTransparency = 1
+LevelLabel.Text = "Level: 0  |  Ups: 0"
+LevelLabel.TextColor3 = Theme.SubText
+LevelLabel.TextSize = 15
+LevelLabel.Font = Enum.Font.GothamMedium
+LevelLabel.TextXAlignment = Enum.TextXAlignment.Left
+LevelLabel.Parent = LevelPanel
+
+ScrollFrame.Size = UDim2.new(1, -20, 1, -96)
+ScrollFrame.Position = UDim2.new(0, 10, 0, 92)
+ScrollFrame.BackgroundColor3 = Theme.Panel
+ScrollFrame.BorderSizePixel = 0
+ScrollFrame.ScrollBarThickness = 4
+ScrollFrame.ScrollBarImageColor3 = Theme.Accent
+ScrollFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
+ScrollFrame.AutomaticCanvasSize = Enum.AutomaticSize.Y
+ScrollFrame.Parent = MainFrame
+AddCorner(ScrollFrame, Theme.CornerSmall)
+
+UIPadding.PaddingTop = UDim.new(0, 8)
+UIPadding.PaddingBottom = UDim.new(0, 8)
+UIPadding.PaddingLeft = UDim.new(0, 8)
+UIPadding.PaddingRight = UDim.new(0, 8)
+UIPadding.Parent = ScrollFrame
+
+UIListLayout.Parent = ScrollFrame
+UIListLayout.Padding = UDim.new(0, 8)
+UIListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+
+ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+
+-- ==========================================
+-- DRAG FUNCTIONALITY (now also drags the shadow)
+-- ==========================================
+local dragging = false
+local dragInput, mousePos, framePos
+
+TitleLabel.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        dragging = true
+        mousePos = input.Position
+        framePos = MainFrame.Position
+
+        input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then
+                dragging = false
+            end
+        end)
+    end
+end)
+
+TitleLabel.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+        dragInput = input
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if input == dragInput and dragging then
+        local delta = input.Position - mousePos
+        local newPos = UDim2.new(
+            framePos.X.Scale,
+            framePos.X.Offset + delta.X,
+            framePos.Y.Scale,
+            framePos.Y.Offset + delta.Y
+        )
+        MainFrame.Position = newPos
+        Shadow.Position = newPos
+    end
+end)
+
+-- ==========================================
+-- LEVEL COUNTER LOGIC
+-- ==========================================
+local leaderstats = LocalPlayer:WaitForChild("leaderstats")
+local levelValue = leaderstats:WaitForChild("Level")
+local levelUps = 0
+local lastLevel = levelValue.Value
+
+local function updateLevelDisplay()
+    if levelValue.Value > lastLevel then
+        levelUps += 1
+        lastLevel = levelValue.Value
+    end
+    LevelLabel.Text = "Level: " .. levelValue.Value .. "  |  Ups: " .. levelUps
+end
+
+levelValue.Changed:Connect(updateLevelDisplay)
+updateLevelDisplay()
+
+-- ==========================================
+-- SCRIPT FUNCTIONS
+-- ==========================================
+local stopAll = false
+local activeThreads = {}
+
+local function StopAllScripts()
+    stopAll = true
+    for _, thread in pairs(activeThreads) do
+        pcall(function() task.cancel(thread) end)
+    end
+    activeThreads = {}
+    warn("ALL SCRIPTS STOPPED")
+end
+
+-- Modern button with rounded corners, subtle gradient, and hover tween
+local function CreateButton(parent, name, callback)
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(1, 0, 0, 34)
+    btn.BackgroundColor3 = Theme.Button
+    btn.AutoButtonColor = false
+    btn.Text = name
+    btn.TextColor3 = Theme.Text
+    btn.TextSize = 15
+    btn.Font = Enum.Font.GothamMedium
+    btn.Parent = parent
+    AddCorner(btn, Theme.CornerSmall)
+    AddStroke(btn, Theme.Accent, 1, 0.7)
+
+    btn.MouseEnter:Connect(function()
+        TweenService:Create(btn, TweenInfo.new(0.15), {BackgroundColor3 = Theme.ButtonHover}):Play()
+    end)
+    btn.MouseLeave:Connect(function()
+        TweenService:Create(btn, TweenInfo.new(0.15), {BackgroundColor3 = Theme.Button}):Play()
+    end)
+
+    btn.MouseButton1Click:Connect(function()
+        stopAll = false
+        callback()
+    end)
+
+    return btn
+end
+
+-- 1. Regular Dummy Teleport + Farm
+CreateButton(ScrollFrame, "Teleport + Farm (Regular)", function()
+    task.spawn(function()
+        local map = Workspace:WaitForChild("MAP", 9e9)
+        local dummies = map:WaitForChild("dummies", 9e9)
+        local target = dummies:GetChildren()[3]
+        local humanoid = target:WaitForChild("Humanoid", 9e9)
+        local remote = ReplicatedStorage:WaitForChild("jdskhfsIIIllliiIIIdchgdIiIIIlIlIli", 9e9)
+
+        local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+        local root = char:WaitForChild("HumanoidRootPart")
+        root.CFrame = target.HumanoidRootPart.CFrame * CFrame.new(0, 5, 0)
+
+        while not stopAll do
+            if humanoid and humanoid.Parent and humanoid.Health > 0 then
+                pcall(function() remote:FireServer(humanoid, 1) end)
+            end
+            wait(math.random(4, 7)/10)
+        end
+    end)
+end)
+
+-- 2. 5k Dummy Teleport + Farm
+CreateButton(ScrollFrame, "Teleport + Farm (5k Dummy)", function()
+    task.spawn(function()
+        local map = workspace:FindFirstChild("MAP")
+        if not map then return end
+
+        local dummiesFolder = map:FindFirstChild("5k_dummies")
+        if not dummiesFolder then return end
+
+        local remote = game:GetService("ReplicatedStorage"):FindFirstChild("jdskhfsIIIllliiIIIdchgdIiIIIlIlIli")
+        if not remote then return end
+
+        local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+        local root = char:FindFirstChild("HumanoidRootPart")
+        if not root then return end
+
+        local dummyIndex = 4
+
+        local targetDummy = nil
+        for i = 1, 50 do
+            local children = dummiesFolder:GetChildren()
+            if #children >= dummyIndex then
+                targetDummy = children[dummyIndex]
+                if targetDummy:FindFirstChild("Humanoid") and targetDummy:FindFirstChild("HumanoidRootPart") then
+                    break
+                end
+            end
+            task.wait(0.1)
+        end
+
+        if not targetDummy then
+            warn("ERROR: Dummy index " .. dummyIndex .. " not found! Try changing the index number.")
+            return
+        end
+
+        local targetHumanoid = targetDummy.Humanoid
+        local targetRoot = targetDummy.HumanoidRootPart
+
+        root.CFrame = targetRoot.CFrame * CFrame.new(0, 5, 0)
+        task.wait(0.2)
+
+        while not stopAll do
+            if not targetDummy.Parent or targetHumanoid.Health <= 0 then
+                warn("Target died! Stopping.")
+                break
+            end
+
+            local args = {
+                [1] = targetHumanoid,
+                [2] = 1
+            }
+
+            pcall(function()
+                remote:FireServer(unpack(args))
+            end)
+
+            task.wait(math.random(4, 7)/10)
+        end
+    end)
+end)
+
+-- 3. Fireball Farm
+CreateButton(ScrollFrame, "Fireball Farm", function()
+    task.spawn(function()
+        local remote = ReplicatedStorage:WaitForChild("SkillsInRS", 9e9):WaitForChild("RemoteEvent", 9e9)
+        local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+        local root = char:WaitForChild("HumanoidRootPart")
+
+        while not stopAll do
+            local dummies = GetCurrentDummyFolder()
+            if not dummies then task.wait(0.5) continue end
+
+            local nearest = nil
+            local shortestDist = math.huge
+            for _, dummy in pairs(dummies:GetChildren()) do
+                local hrp = dummy:FindFirstChild("HumanoidRootPart")
+                if hrp then
+                    local dist = (hrp.Position - root.Position).Magnitude
+                    if dist < shortestDist then
+                        shortestDist = dist
+                        nearest = dummy
+                    end
+                end
+            end
+
+            if nearest and nearest:FindFirstChild("HumanoidRootPart") then
+                pcall(function()
+                    remote:FireServer(nearest.HumanoidRootPart.Position, "NewFireball")
+                end)
+            end
+
+            wait(math.random(15, 25)/10)
+        end
+    end)
+end)
+
+-- 4. Lightning Ball Farm
+CreateButton(ScrollFrame, "Lightning Ball Farm", function()
+    task.spawn(function()
+        local remote = ReplicatedStorage:WaitForChild("SkillsInRS", 9e9):WaitForChild("RemoteEvent", 9e9)
+        local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+        local root = char:WaitForChild("HumanoidRootPart")
+
+        while not stopAll do
+            local dummies = GetCurrentDummyFolder()
+            if not dummies then task.wait(0.5) continue end
+
+            local nearest = nil
+            local shortestDist = math.huge
+            for _, dummy in pairs(dummies:GetChildren()) do
+                local hrp = dummy:FindFirstChild("HumanoidRootPart")
+                if hrp then
+                    local dist = (hrp.Position - root.Position).Magnitude
+                    if dist < shortestDist then
+                        shortestDist = dist
+                        nearest = dummy
+                    end
+                end
+            end
+
+            if nearest and nearest:FindFirstChild("HumanoidRootPart") and nearest.Humanoid.Health > 0 then
+                pcall(function()
+                    remote:FireServer(nearest.HumanoidRootPart.Position, "NewLightningball")
+                end)
+            end
+
+            wait(math.random(20, 30)/10)
+        end
+    end)
+end)
+
+-- 5. Coin Farm
+CreateButton(ScrollFrame, "Coin Farm", function()
+    task.spawn(function()
+        local remote = ReplicatedStorage:WaitForChild("Events", 9e9):WaitForChild("CoinEvent", 9e9)
+        while not stopAll do
+            pcall(function() remote:FireServer() end)
+            wait(math.random(30, 45)/10)
+        end
+    end)
+end)
+
+-- 6. Anti-AFK
+CreateButton(ScrollFrame, "Anti-AFK", function()
+    task.spawn(function()
+        local VirtualUser = game:GetService("VirtualUser")
+        while not stopAll do
+            wait(math.random(180, 300))
+            if not stopAll then
+                pcall(function() VirtualUser:CaptureController(); VirtualUser:ClickButton2(Vector2.new()) end)
+            end
+        end
+    end)
+end)
+
+-- 7. FPS Boost
+CreateButton(ScrollFrame, "FPS Boost (Gray Mode)", function()
+    task.spawn(function()
+        local Lighting = game:GetService("Lighting")
+        Lighting.GlobalShadows = false
+        for _, v in pairs(Workspace:GetDescendants()) do
+            if v:IsA("BasePart") then
+                v.Material = Enum.Material.SmoothPlastic
+                v.Color = Color3.fromRGB(128, 128, 128)
+            end
+        end
+        warn("FPS Boost Applied")
+    end)
+end)
+-- ==========================================
+-- NEW CUSTOM UTILITIES
+-- ==========================================
+
+-- Fireball Auto-Hit Target
+local fireballTargetPlayer = nil
+
+CreateButton(ScrollFrame, "Fireball Hit", function()
+    local Mouse = LocalPlayer:GetMouse()
+    local remote = ReplicatedStorage:WaitForChild("SkillsInRS", 9e9):WaitForChild("RemoteEvent", 9e9)
+    
+    -- Pick a target by clicking on their character model
+    TitleLabel.Text = "CLICK A TARGET..."
+    local clickConnection
+    clickConnection = Mouse.Button1Down:Connect(function()
+        local target = Mouse.Target
+        if target and target.Parent then
+            local model = target.Parent:IsA("Accessory") and target.Parent.Parent or target.Parent
+            local targetCharPlayer = Players:GetPlayerFromCharacter(model)
+            
+            if targetCharPlayer then
+                fireballTargetPlayer = targetCharPlayer
+                TitleLabel.Text = "TARGET: " .. fireballTargetPlayer.DisplayName
+            else
+                TitleLabel.Text = "FARM HUB"
+            end
+        end
+        clickConnection:Disconnect()
+    end)
+
+    -- Auto-hit execution loop
+    task.spawn(function()
+        while not stopAll do
+            if fireballTargetPlayer and fireballTargetPlayer.Character then
+                local tChar = fireballTargetPlayer.Character
+                local tHum = tChar:FindFirstChildOfClass("Humanoid")
+                local tRoot = tChar:FindFirstChild("HumanoidRootPart")
+
+                -- Stop targeting if player dies, leaves, or loses all health
+                if not tHum or tHum.Health <= 0 then
+                    warn("Target lost or low health. Stopping Fireball Auto-Hit.")
+                    fireballTargetPlayer = nil
+                    TitleLabel.Text = "FARM HUB"
+                    break
+                end
+
+                if tRoot then
+                    pcall(function()
+                        remote:FireServer(tRoot.Position, "NewFireball")
+                    end)
+                end
+            end
+            task.wait(math.random(15, 25) / 10)
+        end
+    end)
+end)
+
+-- Hitbox Visualizer (Research Tool)
+local hitboxesActive = false
+CreateButton(ScrollFrame, "Toggle Hitboxes", function()
+    hitboxesActive = not hitboxesActive
+    
+    for _, player in pairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and player.Character then
+            local hrp = player.Character:FindFirstChild("HumanoidRootPart")
+            if hrp then
+                if hitboxesActive then
+                    hrp.Size = Vector3.new(10, 10, 10)
+                    hrp.Transparency = 0.7
+                    hrp.Color = Color3.fromRGB(255, 0, 0)
+                    hrp.Material = Enum.Material.ForceField
+                    hrp.CanCollide = false
+                else
+                    hrp.Size = Vector3.new(2, 2, 1)
+                    hrp.Transparency = 1
+                end
+            end
+        end
+    end
+end)
+
+-- See Avatars Behind Walls (ESP)
+local espActive = false
+CreateButton(ScrollFrame, "Toggle Wall ESP", function()
+    espActive = not espActive
+    
+    for _, player in pairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and player.Character then
+            local existingHighlight = player.Character:FindFirstChild("ESPHighlight")
+            
+            if espActive then
+                if not existingHighlight then
+                    local highlight = Instance.new("Highlight")
+                    highlight.Name = "ESPHighlight"
+                    highlight.Adornee = player.Character
+                    highlight.FillColor = Theme.Accent
+                    highlight.FillTransparency = 0.5
+                    highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
+                    highlight.OutlineTransparency = 0
+                    highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+                    highlight.Parent = player.Character
+                end
+            else
+                if existingHighlight then
+                    existingHighlight:Destroy()
+                end
+            end
+        end
+    end
+end)
+-- 8. STOP ALL (distinct solid-red style, no hover fade)
+local stopBtn = Instance.new("TextButton")
+stopBtn.Size = UDim2.new(1, 0, 0, 40)
+stopBtn.BackgroundColor3 = Theme.Accent
+stopBtn.AutoButtonColor = false
+stopBtn.Text = "STOP ALL SCRIPTS"
+stopBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+stopBtn.TextSize = 16
+stopBtn.Font = Enum.Font.GothamBold
+stopBtn.Parent = ScrollFrame
+AddCorner(stopBtn, Theme.CornerSmall)
+stopBtn.MouseButton1Click:Connect(StopAllScripts)
+
+print("Farm Hub GUI Loaded (Modern UI). Check your screen.")
