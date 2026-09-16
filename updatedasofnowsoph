@@ -1,0 +1,295 @@
+-- ALL-IN-ONE FARM clicker (Native UI - Red Theme + Draggable + Modern Polish)
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Workspace = game:GetService("Workspace")
+local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
+local LocalPlayer = Players.LocalPlayer
+
+-- zone detection for fireball and lightning ball
+local function GetCurrentDummyFolder()
+    local char = LocalPlayer.Character
+    if not char then return nil end
+    local root = char:FindFirstChild("HumanoidRootPart")
+    if not root then return nil end
+
+    local k5AreaCenter = Vector3.new(-79, 593, 814)
+    local regularAreaCenter = Vector3.new(-131, 642, 575)
+
+    local distanceToK5 = (root.Position - k5AreaCenter).Magnitude
+    local distanceToRegular = (root.Position - regularAreaCenter).Magnitude
+
+    local map = Workspace:FindFirstChild("MAP")
+    if not map then return nil end
+
+    if distanceToK5 < distanceToRegular then
+        return map:FindFirstChild("5k_dummies")
+    else
+        return map:FindFirstChild("dummies")
+    end
+end
+
+-- ==========================================
+-- THEME
+-- ==========================================
+local Theme = {
+    Accent      = Color3.fromRGB(220, 40, 40),   -- bright red accent
+    AccentDark  = Color3.fromRGB(120, 10, 10),   -- deep red
+    Background  = Color3.fromRGB(24, 24, 26),    -- near-black frame bg
+    Panel       = Color3.fromRGB(32, 32, 35),    -- scroll frame bg
+    Button      = Color3.fromRGB(44, 44, 48),
+    ButtonHover = Color3.fromRGB(60, 20, 20),
+    Text        = Color3.fromRGB(240, 240, 240),
+    SubText     = Color3.fromRGB(190, 190, 190),
+    Corner      = UDim.new(0, 10),
+    CornerSmall = UDim.new(0, 8),
+}
+
+local function AddCorner(parent, radius)
+    local c = Instance.new("UICorner")
+    c.CornerRadius = radius or Theme.Corner
+    c.Parent = parent
+    return c
+end
+
+local function AddStroke(parent, color, thickness, transparency)
+    local s = Instance.new("UIStroke")
+    s.Color = color or Theme.Accent
+    s.Thickness = thickness or 1
+    s.Transparency = transparency or 0.4
+    s.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+    s.Parent = parent
+    return s
+end
+
+local function AddGradient(parent, colorSequence, rotation)
+    local g = Instance.new("UIGradient")
+    g.Color = colorSequence
+    g.Rotation = rotation or 90
+    g.Parent = parent
+    return g
+end
+
+-- Create UI Elements
+local ScreenGui = Instance.new("ScreenGui")
+local Shadow = Instance.new("ImageLabel")
+local MainFrame = Instance.new("Frame")
+local TitleBar = Instance.new("Frame")
+local TitleLabel = Instance.new("TextLabel")
+local LevelPanel = Instance.new("Frame")
+local LevelLabel = Instance.new("TextLabel")
+local ScrollFrame = Instance.new("ScrollingFrame")
+local UIListLayout = Instance.new("UIListLayout")
+local UIPadding = Instance.new("UIPadding")
+
+-- UI Configuration
+ScreenGui.Name = "FarmHubNative"
+ScreenGui.ResetOnSpawn = false
+ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+ScreenGui.DisplayOrder = 10
+
+-- Drop shadow behind the whole panel
+Shadow.Name = "Shadow"
+Shadow.Image = "rbxassetid://1316045217" -- soft drop shadow asset
+Shadow.ImageColor3 = Color3.fromRGB(0, 0, 0)
+Shadow.ImageTransparency = 0.4
+Shadow.ScaleType = Enum.ScaleType.Slice
+Shadow.SliceCenter = Rect.new(10, 10, 118, 118)
+Shadow.BackgroundTransparency = 1
+Shadow.Size = UDim2.new(1, 40, 1, 40)
+Shadow.Position = UDim2.new(0.5, 0, 0.5, 0)
+Shadow.AnchorPoint = Vector2.new(0.5, 0.5)
+Shadow.ZIndex = 0
+Shadow.Parent = ScreenGui
+
+MainFrame.Size = UDim2.new(0, 300, 0, 450)
+MainFrame.Position = UDim2.new(0.5, -150, 0.5, -225)
+MainFrame.BackgroundColor3 = Theme.Background
+MainFrame.BorderSizePixel = 0
+MainFrame.ClipsDescendants = true
+MainFrame.Parent = ScreenGui
+AddCorner(MainFrame, Theme.Corner)
+AddStroke(MainFrame, Theme.Accent, 1, 0.3)
+
+-- Anchor the shadow to sit exactly behind MainFrame
+Shadow.Position = MainFrame.Position
+MainFrame:GetPropertyChangedSignal("Position"):Connect(function()
+    Shadow.Position = MainFrame.Position
+end)
+Shadow.Size = UDim2.new(MainFrame.Size.X.Scale, MainFrame.Size.X.Offset + 30, MainFrame.Size.Y.Scale, MainFrame.Size.Y.Offset + 30)
+Shadow.AnchorPoint = Vector2.new(0, 0)
+
+-- Title bar with gradient
+TitleBar.Name = "TitleBar"
+TitleBar.Size = UDim2.new(1, 0, 0, 44)
+TitleBar.Position = UDim2.new(0, 0, 0, 0)
+TitleBar.BackgroundColor3 = Theme.AccentDark
+TitleBar.BorderSizePixel = 0
+TitleBar.Parent = MainFrame
+AddCorner(TitleBar, Theme.Corner)
+AddGradient(TitleBar, ColorSequence.new{
+    ColorSequenceKeypoint.new(0, Theme.Accent),
+    ColorSequenceKeypoint.new(1, Theme.AccentDark),
+}, 0)
+
+-- Mask the bottom corners of the title bar so it looks flush with MainFrame
+local TitleBarMask = Instance.new("Frame")
+TitleBarMask.BackgroundColor3 = Theme.AccentDark
+TitleBarMask.BorderSizePixel = 0
+TitleBarMask.Size = UDim2.new(1, 0, 0, 12)
+TitleBarMask.Position = UDim2.new(0, 0, 1, -12)
+TitleBarMask.ZIndex = TitleBar.ZIndex
+TitleBarMask.Parent = TitleBar
+
+TitleLabel.Size = UDim2.new(1, -40, 1, 0)
+TitleLabel.Position = UDim2.new(0, 12, 0, 0)
+TitleLabel.BackgroundTransparency = 1
+TitleLabel.Text = "FARM HUB"
+TitleLabel.TextColor3 = Theme.Text
+TitleLabel.TextSize = 18
+TitleLabel.Font = Enum.Font.GothamBold
+TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
+TitleLabel.Parent = TitleBar
+TitleLabel.Active = true
+TitleLabel.Selectable = true
+
+-- Create Minimize Button
+local MinimizeButton = Instance.new("TextButton")
+MinimizeButton.Name = "MinimizeButton"
+MinimizeButton.Text = "—"
+MinimizeButton.TextSize = 18
+MinimizeButton.Font = Enum.Font.GothamBold
+MinimizeButton.TextColor3 = Theme.Text
+MinimizeButton.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+MinimizeButton.BackgroundTransparency = 0.9
+MinimizeButton.BorderSizePixel = 0
+MinimizeButton.Size = UDim2.new(0, 28, 0, 28)
+MinimizeButton.Position = UDim2.new(1, -36, 0.5, -14)
+MinimizeButton.ZIndex = 2
+MinimizeButton.Parent = TitleBar
+AddCorner(MinimizeButton, UDim.new(1, 0))
+
+-- Create Minimized Icon (Hidden initially)
+local MinimizedIcon = Instance.new("ImageButton")
+MinimizedIcon.Name = "MinimizedIcon"
+MinimizedIcon.Image = "rbxassetid://11176073582"
+MinimizedIcon.ImageColor3 = Theme.Accent
+MinimizedIcon.BackgroundColor3 = Theme.Background
+MinimizedIcon.BackgroundTransparency = 0.1
+MinimizedIcon.Size = UDim2.new(0, 42, 0, 42)
+MinimizedIcon.Position = UDim2.new(0, 20, 0, 20)
+MinimizedIcon.Visible = false
+MinimizedIcon.ZIndex = 10
+MinimizedIcon.Parent = ScreenGui
+AddCorner(MinimizedIcon, UDim.new(1, 0))
+AddStroke(MinimizedIcon, Theme.Accent, 1.5, 0.2)
+
+local uiVisible = true
+
+local function SetUIVisible(visible)
+    uiVisible = visible
+    MainFrame.Visible = visible
+    Shadow.Visible = visible
+    MinimizedIcon.Visible = not visible
+end
+
+local function ToggleUI()
+    SetUIVisible(not uiVisible)
+end
+
+MinimizeButton.MouseButton1Click:Connect(function()
+    SetUIVisible(false)
+end)
+
+MinimizedIcon.MouseButton1Click:Connect(function()
+    SetUIVisible(true)
+end)
+
+-- ==========================================
+-- KEYBIND TOGGLE
+-- ==========================================
+local ToggleKey = Enum.KeyCode.F2
+
+UserInputService.InputBegan:Connect(function(input, gameProcessedEvent)
+    if gameProcessedEvent then return end 
+    if input.KeyCode == ToggleKey then
+        ToggleUI()
+    end
+end)
+
+-- Level panel (pill-style stat readout)
+LevelPanel.Size = UDim2.new(1, -20, 0, 32)
+LevelPanel.Position = UDim2.new(0, 10, 0, 52)
+LevelPanel.BackgroundColor3 = Theme.Panel
+LevelPanel.BorderSizePixel = 0
+LevelPanel.Parent = MainFrame
+AddCorner(LevelPanel, Theme.CornerSmall)
+
+LevelLabel.Size = UDim2.new(1, -16, 1, 0)
+LevelLabel.Position = UDim2.new(0, 8, 0, 0)
+LevelLabel.BackgroundTransparency = 1
+LevelLabel.Text = "Level: 0  |  Ups: 0"
+LevelLabel.TextColor3 = Theme.SubText
+LevelLabel.TextSize = 15
+LevelLabel.Font = Enum.Font.GothamMedium
+LevelLabel.TextXAlignment = Enum.TextXAlignment.Left
+LevelLabel.Parent = LevelPanel
+
+ScrollFrame.Size = UDim2.new(1, -20, 1, -96)
+ScrollFrame.Position = UDim2.new(0, 10, 0, 92)
+ScrollFrame.BackgroundColor3 = Theme.Panel
+ScrollFrame.BorderSizePixel = 0
+ScrollFrame.ScrollBarThickness = 4
+ScrollFrame.ScrollBarImageColor3 = Theme.Accent
+ScrollFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
+ScrollFrame.AutomaticCanvasSize = Enum.AutomaticSize.Y
+ScrollFrame.Parent = MainFrame
+AddCorner(ScrollFrame, Theme.CornerSmall)
+
+UIPadding.PaddingTop = UDim.new(0, 8)
+UIPadding.PaddingBottom = UDim.new(0, 8)
+UIPadding.PaddingLeft = UDim.new(0, 8)
+UIPadding.PaddingRight = UDim.new(0, 8)
+UIPadding.Parent = ScrollFrame
+
+UIListLayout.Parent = ScrollFrame
+UIListLayout.Padding = UDim.new(0, 8)
+UIListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+
+ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+
+-- ==========================================
+-- DRAG FUNCTIONALITY
+-- ==========================================
+local dragging = false
+local dragInput, mousePos, framePos
+
+TitleLabel.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        dragging = true
+        mousePos = input.Position
+        framePos = MainFrame.Position
+
+        input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then
+                dragging = false
+            end
+        end)
+    end
+end)
+
+TitleLabel.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+        dragInput = input
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if input == dragInput and dragging then
+        local delta = input.Position - mousePos
+        local newPos = UDim2.new(
+            framePos.X.Scale,
+            framePos.X.Offset + delta.X,
+            framePos.Y.Scale,
+            framePos.Y.Offset + delta.Y
+        )
