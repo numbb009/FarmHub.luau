@@ -9,7 +9,6 @@ local LocalPlayer = Players.LocalPlayer
 -- Global Script Management States
 local stopAll = false
 local activeThreads = {}
-local skeletonConnections = {}
 local drawingFolders = {}
 
 -- Track slider modifier adjustments
@@ -163,19 +162,9 @@ ContentWindow.Position = UDim2.new(0, 165, 0, 10)
 ContentWindow.BackgroundTransparency = 1
 ContentWindow.Parent = MainFrame
 
-local SubTabBar = Instance.new("Frame")
-SubTabBar.Size = UDim2.new(1, 0, 0, 35)
-SubTabBar.BackgroundTransparency = 1
-SubTabBar.Parent = ContentWindow
-
-local SubTabListLayout = Instance.new("UIListLayout")
-SubTabListLayout.FillDirection = Enum.FillDirection.Horizontal
-SubTabListLayout.Padding = UDim.new(0, 12)
-SubTabListLayout.Parent = SubTabBar
-
 local TabPanelsContainer = Instance.new("Frame")
-TabPanelsContainer.Size = UDim2.new(1, 0, 1, -45)
-TabPanelsContainer.Position = UDim2.new(0, 0, 0, 45)
+TabPanelsContainer.Size = UDim2.new(1, 0, 1, 0)
+TabPanelsContainer.Position = UDim2.new(0, 0, 0, 0)
 TabPanelsContainer.BackgroundTransparency = 1
 TabPanelsContainer.Parent = ContentWindow   
 -- ==========================================
@@ -388,10 +377,6 @@ end
 
 local function StopAllScripts()
     stopAll = true
-    for _, connection in pairs(skeletonConnections) do
-        pcall(function() connection:Disconnect() end)
-    end
-    skeletonConnections = {}
     for name, thread in pairs(activeThreads) do
         pcall(function() task.cancel(thread) end)
     end
@@ -418,33 +403,6 @@ CreateTab("Combat & Config")
 tabs["Farming"].Page.Visible = true
 tabs["Farming"].Button.BackgroundTransparency = 0
 tabs["Farming"].Button.TextColor3 = Theme.TextPrimary
-
--- ==========================================
--- SUB-TABS FILTER ENGINE
--- ==========================================
-local subTabOptions = {"Enemies", "Teammates", "Self"}
-for i, subName in ipairs(subTabOptions) do
-    local btn = Instance.new("TextButton")
-    btn.Size = UDim2.new(0, 85, 1, 0)
-    btn.BackgroundTransparency = i == 1 and 0 or 1
-    btn.BackgroundColor3 = Color3.fromRGB(24, 10, 10)
-    btn.Text = subName
-    btn.TextColor3 = i == 1 and Theme.TextPrimary or Theme.TextMuted
-    btn.Font = Theme.FontMain
-    btn.TextSize = 13
-    btn.Parent = SubTabBar
-    StyleElement(btn, UDim.new(0, 4))
-
-    if i == 1 then activeSubTabBtn = btn end
-
-    btn.MouseButton1Click:Connect(function()
-        if activeSubTabBtn then
-            TweenService:Create(activeSubTabBtn, TweenInfo.new(0.15), {BackgroundTransparency = 1, TextColor3 = Theme.TextMuted}):Play()
-        end
-        activeSubTabBtn = btn
-        TweenService:Create(btn, TweenInfo.new(0.15), {BackgroundTransparency = 0, TextColor3 = Theme.TextPrimary}):Play()
-    end)
-end   
 
 -- ==========================================
 -- TAB SECTIONS & UTILITIES WIRING
@@ -524,7 +482,7 @@ CreateModernToggle(currencyContainer, "Auto Coin Collect", false, function(state
 end)
 
 -- CARD 3: Through-Wall Overlay HUDs
-local espContainer = CreateCard("Visuals", "Through Walls")
+local espContainer = CreateCard("Visuals", "See through walls")
 
 CreateModernToggle(espContainer, "Enable Highlight ESP", false, function(state)
     for _, player in pairs(Players:GetPlayers()) do
@@ -544,67 +502,6 @@ CreateModernToggle(espContainer, "Enable Highlight ESP", false, function(state)
                 existing:Destroy()
             end
         end
-    end
-end)
-
--- CARD 4: Structural Bone Art Engine
-local skeletonContainer = CreateCard("Visuals", "Skeletons Rendering")
-local skeletonActive = false
-local skeletonFolder = nil
-
-local R15Bones = {
-    {"UpperTorso", "Head"},
-    {"UpperTorso", "LowerTorso"},
-    {"UpperTorso", "LeftUpperArm"},
-    {"LeftUpperArm", "LeftLowerArm"},
-    {"UpperTorso", "RightUpperArm"},
-    {"RightUpperArm", "RightLowerArm"},
-    {"LowerTorso", "LeftUpperLeg"},
-    {"LeftUpperLeg", "LeftLowerLeg"},
-    {"LowerTorso", "RightUpperLeg"},
-    {"RightUpperLeg", "RightLowerLeg"}
-}
-
-local function Draw3DLine(partA, partB, parentFolder)
-    local adornment = Instance.new("CylinderHandleAdornment")
-    adornment.Radius = 0.06
-    adornment.Color3 = Theme.AccentActive
-    adornment.AlwaysOnTop = true
-    adornment.Adornee = partA
-    adornment.Parent = parentFolder
-
-    local conn
-    conn = RunService.RenderStepped:Connect(function()
-        if not partA or not partB or not partA.Parent or not adornment.Parent then
-            adornment:Destroy()
-            conn:Disconnect()
-            return
-        end
-        local dist = (partA.Position - partB.Position).Magnitude
-        adornment.Height = dist
-        adornment.CFrame = CFrame.lookAt(partA.Position, partB.Position) * CFrame.new(0, 0, -dist / 2)
-    end)
-    table.insert(skeletonConnections, conn)
-end
-
-CreateModernToggle(skeletonContainer, "Enable Skeleton ESP", false, function(state)
-    skeletonActive = state
-    if state then
-        skeletonFolder = Instance.new("Folder")
-        skeletonFolder.Name = "SkeletonESP"
-        skeletonFolder.Parent = Workspace
-        table.insert(drawingFolders, skeletonFolder)
-        for _, p in pairs(Players:GetPlayers()) do
-            if p ~= LocalPlayer and p.Character then
-                for _, bonePair in pairs(R15Bones) do
-                    local a = p.Character:FindFirstChild(bonePair[1])
-                    local b = p.Character:FindFirstChild(bonePair[2])
-                    if a and b then Draw3DLine(a, b, skeletonFolder) end
-                end
-            end
-        end
-    else
-        ClearDrawings()
     end
 end)
 
@@ -637,6 +534,35 @@ end)
 
 -- CARD 6: Modifications Configuration Sliders
 local modContainer = CreateCard("Combat & Config", "Modifications")
+
+-- CARD 7: Auto-Teleport Clutch Safeguard
+local clutchContainer = CreateCard("Combat & Config", "Auto-Teleport Clutch")
+
+CreateModernToggle(clutchContainer, "Panic Escape (Low HP)", false, function(state)
+    if not state then
+        if activeThreads["ClutchEscape"] then task.cancel(activeThreads["ClutchEscape"]) end
+        return
+    end
+    StartManagedThread("ClutchEscape", function()
+        local safeZone = Vector3.new(119, 641, -122)
+        local threshold = 20
+        while not stopAll do
+            local char = LocalPlayer.Character
+            local humanoid = char and char:FindFirstChildOfClass("Humanoid")
+            local rootPart = char and char:FindFirstChild("HumanoidRootPart")
+
+            if humanoid and rootPart and humanoid.Health > 0 then
+                local healthPercentage = (humanoid.Health / humanoid.MaxHealth) * 100
+                if healthPercentage <= threshold then
+                    rootPart.CFrame = CFrame.new(safeZone)
+                    warn("CRITICAL HEALTH PANIC ESCAPE TRIGGERED!")
+                    task.wait(4)
+                end
+            end
+            task.wait(0.1)
+        end
+    end)
+end)   
 
 CreateSlider(modContainer, "Character WalkSpeed", 16, 250, 16, function(value)
     modifications.WalkSpeed = value
