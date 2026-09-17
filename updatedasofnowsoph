@@ -98,7 +98,7 @@ StyleElement(MainFrame, Theme.CornerRadius, Color3.fromRGB(255, 255, 255), 1.5, 
 
 -- Left Hand Sidebar Navigation Rail
 local Sidebar = Instance.new("Frame")
-Sidebar.Size = UDim2.new(0, 160, 1, 0)
+Sidebar.Size = UDim2.new(0, 160, 1, -24)
 Sidebar.BackgroundColor3 = Theme.Canvas
 Sidebar.BorderSizePixel = 0
 Sidebar.Parent = MainFrame
