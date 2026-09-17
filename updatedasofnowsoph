@@ -1,1 +1,715 @@
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Workspace = game:GetService("Workspace")
+local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
+local RunService = game:GetService("RunService")
+local LocalPlayer = Players.LocalPlayer
 
+-- Global Script Management States
+local stopAll = false
+local activeThreads = {}
+local skeletonConnections = {}
+local drawingFolders = {}
+
+-- Track slider modifier adjustments
+local modifications = {
+    WalkSpeed = 16,
+    JumpPower = 50
+}   
+-- Zone detection for fireball and lightning ball
+local function GetCurrentDummyFolder()
+    local char = LocalPlayer.Character
+    if not char then return nil end
+    local root = char:FindFirstChild("HumanoidRootPart")
+    if not root then return nil end
+
+    local k5AreaCenter = Vector3.new(-79, 593, 814)
+    local regularAreaCenter = Vector3.new(-131, 642, 575)
+
+    local distanceToK5 = (root.Position - k5AreaCenter).Magnitude
+    local distanceToRegular = (root.Position - regularAreaCenter).Magnitude
+
+    local map = Workspace:FindFirstChild("MAP")
+    if not map then return nil end
+
+    if distanceToK5 < distanceToRegular then
+        return map:FindFirstChild("5k_dummies")
+    else
+        return map:FindFirstChild("dummies")
+    end
+end
+
+-- ==========================================
+-- VISUAL CONFIGURATION & THEME
+-- ==========================================
+local Theme = {
+    Canvas       = Color3.fromRGB(0, 0, 0),
+    PanelBg      = Color3.fromRGB(8, 8, 10),
+    CardBg       = Color3.fromRGB(14, 14, 16),
+    AccentActive = Color3.fromRGB(220, 40, 40),
+    TextPrimary  = Color3.fromRGB(245, 245, 250),
+    TextMuted    = Color3.fromRGB(150, 150, 160),
+    FontMain     = Enum.Font.GothamMedium,
+    FontBold     = Enum.Font.GothamBold,
+    CornerRadius = UDim.new(0, 10)
+}
+
+local function StyleElement(instance, radius, strokeColor, strokeThick, addBorderGradient)
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = radius or Theme.CornerRadius
+    corner.Parent = instance
+
+    if strokeColor then
+        local stroke = Instance.new("UIStroke")
+        stroke.Color = strokeColor
+        stroke.Thickness = strokeThick or 1.5
+        stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+        stroke.Transparency = 0.1
+        stroke.Parent = instance
+
+        if addBorderGradient then
+            local grad = Instance.new("UIGradient")
+            grad.Color = ColorSequence.new{
+                ColorSequenceKeypoint.new(0, Color3.fromRGB(240, 30, 30)),
+                ColorSequenceKeypoint.new(0.5, Color3.fromRGB(40, 5, 5)),
+                ColorSequenceKeypoint.new(1, Color3.fromRGB(0, 0, 0))
+            }
+            grad.Rotation = 45
+            grad.Parent = stroke
+        end
+        return corner, stroke
+    end
+    return corner
+end   
+-- Base Core Layout
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "NebulaTechHub"
+ScreenGui.ResetOnSpawn = false
+ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+
+local MainFrame = Instance.new("Frame")
+MainFrame.Size = UDim2.new(0, 680, 0, 440)
+MainFrame.Position = UDim2.new(0.5, -340, 0.5, -220)
+MainFrame.BackgroundColor3 = Theme.PanelBg
+MainFrame.BorderSizePixel = 0
+MainFrame.Parent = ScreenGui
+StyleElement(MainFrame, Theme.CornerRadius, Color3.fromRGB(255, 255, 255), 1.5, true)
+
+-- Left Hand Sidebar Navigation Rail
+local Sidebar = Instance.new("Frame")
+Sidebar.Size = UDim2.new(0, 160, 1, 0)
+Sidebar.BackgroundColor3 = Theme.Canvas
+Sidebar.BorderSizePixel = 0
+Sidebar.Parent = MainFrame
+local sideCorner = Instance.new("UICorner")
+sideCorner.CornerRadius = Theme.CornerRadius
+sideCorner.Parent = Sidebar
+
+local SideMask = Instance.new("Frame")
+SideMask.Size = UDim2.new(0, 15, 1, 0)
+SideMask.Position = UDim2.new(1, -15, 0, 0)
+SideMask.BackgroundColor3 = Theme.Canvas
+SideMask.BorderSizePixel = 0
+SideMask.Parent = Sidebar
+
+-- ==========================================
+-- LOGO IMAGE COMPONENT SETUP
+-- ==========================================
+local LogoConfig = {
+    AssetID = "rbxassetid://15207692543"
+}
+
+local LogoContainer = Instance.new("Frame")
+LogoContainer.Size = UDim2.new(1, 0, 0, 50)
+LogoContainer.Position = UDim2.new(0, 0, 0, 10)
+LogoContainer.BackgroundTransparency = 1
+LogoContainer.Parent = Sidebar
+
+local StaticIcon = Instance.new("ImageLabel")
+StaticIcon.Size = UDim2.new(0, 26, 0, 26)
+StaticIcon.Position = UDim2.new(0, 14, 0.5, -13)
+StaticIcon.BackgroundTransparency = 1
+StaticIcon.Image = LogoConfig.AssetID
+StaticIcon.ScaleType = Enum.ScaleType.Fit
+StaticIcon.Parent = LogoContainer
+
+local LogoLabel = Instance.new("TextLabel")
+LogoLabel.Size = UDim2.new(1, -45, 1, 0)
+LogoLabel.Position = UDim2.new(0, 45, 0, 0)
+LogoLabel.BackgroundTransparency = 1
+LogoLabel.Text = "nebulatech"
+LogoLabel.TextColor3 = Theme.TextPrimary
+LogoLabel.TextSize = 18
+LogoLabel.Font = Theme.FontBold
+LogoLabel.TextXAlignment = Enum.TextXAlignment.Left
+LogoLabel.Parent = LogoContainer
+
+-- Continue Standard Core Assemblies
+local NavList = Instance.new("Frame")
+NavList.Size = UDim2.new(1, -20, 1, -80)
+NavList.Position = UDim2.new(0, 10, 0, 70)
+NavList.BackgroundTransparency = 1
+NavList.Parent = Sidebar
+
+local NavLayout = Instance.new("UIListLayout")
+NavLayout.Padding = UDim.new(0, 6)
+NavLayout.Parent = NavList
+
+local ContentWindow = Instance.new("Frame")
+ContentWindow.Size = UDim2.new(1, -175, 1, -20)
+ContentWindow.Position = UDim2.new(0, 165, 0, 10)
+ContentWindow.BackgroundTransparency = 1
+ContentWindow.Parent = MainFrame
+
+local SubTabBar = Instance.new("Frame")
+SubTabBar.Size = UDim2.new(1, 0, 0, 35)
+SubTabBar.BackgroundTransparency = 1
+SubTabBar.Parent = ContentWindow
+
+local SubTabListLayout = Instance.new("UIListLayout")
+SubTabListLayout.FillDirection = Enum.FillDirection.Horizontal
+SubTabListLayout.Padding = UDim.new(0, 12)
+SubTabListLayout.Parent = SubTabBar
+
+local TabPanelsContainer = Instance.new("Frame")
+TabPanelsContainer.Size = UDim2.new(1, 0, 1, -45)
+TabPanelsContainer.Position = UDim2.new(0, 0, 0, 45)
+TabPanelsContainer.BackgroundTransparency = 1
+TabPanelsContainer.Parent = ContentWindow   
+-- ==========================================
+-- INTERACTIVE MODULE ENGINE (BUILDERS)
+-- ==========================================
+local tabs = {}
+local activeTab = nil
+local activeSubTabBtn = nil
+
+local function CreateTab(name)
+    local tabBtn = Instance.new("TextButton")
+    tabBtn.Size = UDim2.new(1, 0, 0, 36)
+    tabBtn.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
+    tabBtn.BackgroundTransparency = 1
+    tabBtn.Text = "    " .. name
+    tabBtn.TextColor3 = Theme.TextMuted
+    tabBtn.TextSize = 14
+    tabBtn.Font = Theme.FontMain
+    tabBtn.TextXAlignment = Enum.TextXAlignment.Left
+    tabBtn.Parent = NavList
+    StyleElement(tabBtn, UDim.new(0, 6))
+
+    local page = Instance.new("ScrollingFrame")
+    page.Size = UDim2.new(1, 0, 1, 0)
+    page.BackgroundTransparency = 1
+    page.Visible = false
+    page.ScrollBarThickness = 3
+    page.ScrollBarImageColor3 = Theme.AccentActive
+    page.CanvasSize = UDim2.new(0, 0, 0, 0)
+    page.AutomaticCanvasSize = Enum.AutomaticSize.Y
+    page.Parent = TabPanelsContainer
+
+    local grid = Instance.new("UIGridLayout")
+    grid.CellSize = UDim2.new(0, 240, 0, 160)
+    grid.CellPadding = UDim2.new(0, 15, 0, 15)
+    grid.Parent = page
+
+    tabs[name] = {Button = tabBtn, Page = page}
+
+    tabBtn.MouseButton1Click:Connect(function()
+        for _, t in pairs(tabs) do
+            t.Page.Visible = false
+            TweenService:Create(t.Button, TweenInfo.new(0.2), {BackgroundTransparency = 1, TextColor3 = Theme.TextMuted}):Play()
+        end
+        page.Visible = true
+        TweenService:Create(tabBtn, TweenInfo.new(0.2), {BackgroundTransparency = 0, TextColor3 = Theme.TextPrimary}):Play()
+    end)
+end
+
+local function CreateCard(tabName, cardTitle)
+    local page = tabs[tabName].Page
+    local card = Instance.new("Frame")
+    card.BackgroundColor3 = Theme.CardBg
+    card.Parent = page
+    StyleElement(card, Theme.CornerRadius, Color3.fromRGB(30, 30, 35), 1)
+
+    local title = Instance.new("TextLabel")
+    title.Size = UDim2.new(1, -20, 0, 30)
+    title.Position = UDim2.new(0, 12, 0, 5)
+    title.BackgroundTransparency = 1
+    title.Text = cardTitle
+    title.TextColor3 = Theme.TextPrimary
+    title.TextSize = 14
+    title.Font = Theme.FontBold
+    title.TextXAlignment = Enum.TextXAlignment.Left
+    title.Parent = card
+
+    local container = Instance.new("Frame")
+    container.Size = UDim2.new(1, -24, 1, -40)
+    container.Position = UDim2.new(0, 12, 0, 35)
+    container.BackgroundTransparency = 1
+    container.Parent = card
+
+    local layout = Instance.new("UIListLayout")
+    layout.Padding = UDim.new(0, 8)
+    layout.Parent = container
+
+    return container
+end
+
+local function CreateModernToggle(parent, featureName, startState, callback)
+    local row = Instance.new("Frame")
+    row.Size = UDim2.new(1, 0, 0, 26)
+    row.BackgroundTransparency = 1
+    row.Parent = parent
+
+    local label = Instance.new("TextLabel")
+    label.Size = UDim2.new(1, -45, 1, 0)
+    label.BackgroundTransparency = 1
+    label.Text = featureName
+    label.TextColor3 = Theme.TextMuted
+    label.TextSize = 13
+    label.Font = Theme.FontMain
+    label.TextXAlignment = Enum.TextXAlignment.Left
+    label.Parent = row
+
+    local switch = Instance.new("TextButton")
+    switch.Size = UDim2.new(0, 36, 0, 18)
+    switch.Position = UDim2.new(1, -36, 0.5, -9)
+    switch.BackgroundColor3 = startState and Theme.AccentActive or Color3.fromRGB(40, 40, 45)
+    switch.Text = ""
+    switch.Parent = row
+    StyleElement(switch, UDim.new(1, 0))
+
+    local pill = Instance.new("Frame")
+    pill.Size = UDim2.new(0, 14, 0, 14)
+    pill.Position = startState and UDim2.new(1, -16, 0.5, -7) or UDim2.new(0, 2, 0.5, -7)
+    pill.BackgroundColor3 = Theme.TextPrimary
+    pill.BorderSizePixel = 0
+    pill.Parent = switch
+    StyleElement(pill, UDim.new(1, 0))
+
+    local active = startState
+    switch.MouseButton1Click:Connect(function()
+        active = not active
+        local targetPos = active and UDim2.new(1, -16, 0.5, -7) or UDim2.new(0, 2, 0.5, -7)
+        local targetColor = active and Theme.AccentActive or Color3.fromRGB(40, 40, 45)
+        TweenService:Create(pill, TweenInfo.new(0.15, Enum.EasingStyle.Quad), {Position = targetPos}):Play()
+        TweenService:Create(switch, TweenInfo.new(0.15, Enum.EasingStyle.Quad), {BackgroundColor3 = targetColor}):Play()
+        TweenService:Create(label, TweenInfo.new(0.15), {TextColor3 = active and Theme.TextPrimary or Theme.TextMuted}):Play()
+        callback(active)
+    end)
+end
+
+local function CreateSlider(parent, sliderName, min, max, startValue, callback)
+    local row = Instance.new("Frame")
+    row.Size = UDim2.new(1, 0, 0, 34)
+    row.BackgroundTransparency = 1
+    row.Parent = parent
+
+    local label = Instance.new("TextLabel")
+    label.Size = UDim2.new(1, -40, 0, 16)
+    label.BackgroundTransparency = 1
+    label.Text = sliderName
+    label.TextColor3 = Theme.TextMuted
+    label.TextSize = 12
+    label.Font = Theme.FontMain
+    label.TextXAlignment = Enum.TextXAlignment.Left
+    label.Parent = row
+
+    local valueLabel = Instance.new("TextLabel")
+    valueLabel.Size = UDim2.new(0, 40, 0, 16)
+    valueLabel.Position = UDim2.new(1, -40, 0, 0)
+    valueLabel.BackgroundTransparency = 1
+    valueLabel.Text = tostring(startValue)
+    valueLabel.TextColor3 = Theme.TextPrimary
+    valueLabel.TextSize = 12
+    valueLabel.Font = Theme.FontMain
+    valueLabel.TextXAlignment = Enum.TextXAlignment.Right
+    valueLabel.Parent = row
+
+    local track = Instance.new("TextButton")
+    track.Size = UDim2.new(1, 0, 0, 6)
+    track.Position = UDim2.new(0, 0, 0, 22)
+    track.BackgroundColor3 = Color3.fromRGB(40, 40, 45)
+    track.Text = ""
+    track.AutoButtonColor = false
+    track.Parent = row
+    StyleElement(track, UDim.new(1, 0))
+
+    local fill = Instance.new("Frame")
+    local startPercent = math.clamp((startValue - min) / (max - min), 0, 1)
+    fill.Size = UDim2.new(startPercent, 0, 1, 0)
+    fill.BackgroundColor3 = Theme.AccentActive
+    fill.BorderSizePixel = 0
+    fill.Parent = track
+    StyleElement(fill, UDim.new(1, 0))
+
+    local sliderDragging = false
+
+    local function UpdateSliderInput(input)
+        local absoluteWidth = track.AbsoluteSize.X
+        local relativeX = input.Position.X - track.AbsolutePosition.X
+        local percentage = math.clamp(relativeX / absoluteWidth, 0, 1)
+        TweenService:Create(fill, TweenInfo.new(0.08, Enum.EasingStyle.Quad), {Size = UDim2.new(percentage, 0, 1, 0)}):Play()
+        local snapValue = math.floor(min + (percentage * (max - min)))
+        valueLabel.Text = tostring(snapValue)
+        callback(snapValue)
+    end
+
+    track.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            sliderDragging = true
+            UpdateSliderInput(input)
+        end
+    end)
+
+    UserInputService.InputChanged:Connect(function(input)
+        if sliderDragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+            UpdateSliderInput(input)
+        end
+    end)
+
+    UserInputService.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            sliderDragging = false
+        end
+    end)
+end   
+
+-- ==========================================
+-- SCRIPT & THREAD MANAGER ARCHITECTURE
+-- ==========================================
+local function ClearDrawings()
+    for _, folder in pairs(drawingFolders) do
+        if folder then folder:Destroy() end
+    end
+    drawingFolders = {}
+end
+
+local function StopAllScripts()
+    stopAll = true
+    for _, connection in pairs(skeletonConnections) do
+        pcall(function() connection:Disconnect() end)
+    end
+    skeletonConnections = {}
+    for name, thread in pairs(activeThreads) do
+        pcall(function() task.cancel(thread) end)
+    end
+    activeThreads = {}
+    ClearDrawings()
+    warn("ALL MODULES DEACTIVATED")
+end
+
+local function StartManagedThread(name, func)
+    if activeThreads[name] then
+        pcall(function() task.cancel(activeThreads[name]) end)
+        activeThreads[name] = nil
+    end
+    stopAll = false
+    activeThreads[name] = task.spawn(func)
+end
+
+-- Initialize Core Application Layout Navigation Tabs
+CreateTab("Farming")
+CreateTab("Visuals")
+CreateTab("Combat & Config")
+
+-- Set Default Display View Window state
+tabs["Farming"].Page.Visible = true
+tabs["Farming"].Button.BackgroundTransparency = 0
+tabs["Farming"].Button.TextColor3 = Theme.TextPrimary
+
+-- ==========================================
+-- SUB-TABS FILTER ENGINE
+-- ==========================================
+local subTabOptions = {"Enemies", "Teammates", "Self"}
+for i, subName in ipairs(subTabOptions) do
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(0, 85, 1, 0)
+    btn.BackgroundTransparency = i == 1 and 0 or 1
+    btn.BackgroundColor3 = Color3.fromRGB(24, 10, 10)
+    btn.Text = subName
+    btn.TextColor3 = i == 1 and Theme.TextPrimary or Theme.TextMuted
+    btn.Font = Theme.FontMain
+    btn.TextSize = 13
+    btn.Parent = SubTabBar
+    StyleElement(btn, UDim.new(0, 4))
+
+    if i == 1 then activeSubTabBtn = btn end
+
+    btn.MouseButton1Click:Connect(function()
+        if activeSubTabBtn then
+            TweenService:Create(activeSubTabBtn, TweenInfo.new(0.15), {BackgroundTransparency = 1, TextColor3 = Theme.TextMuted}):Play()
+        end
+        activeSubTabBtn = btn
+        TweenService:Create(btn, TweenInfo.new(0.15), {BackgroundTransparency = 0, TextColor3 = Theme.TextPrimary}):Play()
+    end)
+end   
+
+-- ==========================================
+-- TAB SECTIONS & UTILITIES WIRING
+-- ==========================================
+
+-- CARD 1: Automated Dummy Farms
+local farmContainer = CreateCard("Farming", "General Farming")
+
+CreateModernToggle(farmContainer, "Regular Dummy Farm", false, function(state)
+    if not state then
+        if activeThreads["RegularFarm"] then task.cancel(activeThreads["RegularFarm"]) end
+        return
+    end
+    StartManagedThread("RegularFarm", function()
+        local map = Workspace:WaitForChild("MAP", 9e9)
+        local dummies = map:WaitForChild("dummies", 9e9)
+        local remote = ReplicatedStorage:WaitForChild("jdskhfsIIIllliiIIIdchgdIiIIIlIlIli", 9e9)
+        while not stopAll do
+            local children = dummies:GetChildren()
+            local target = children[1]
+            if target and target:FindFirstChild("HumanoidRootPart") and target:FindFirstChild("Humanoid") then
+                local char = LocalPlayer.Character
+                local root = char and char:FindFirstChild("HumanoidRootPart")
+                if root and target.Humanoid.Health > 0 then
+                    root.CFrame = target.HumanoidRootPart.CFrame * CFrame.new(0, 5, 0)
+                    pcall(function() remote:FireServer(target.Humanoid, 1) end)
+                end
+            end
+            task.wait(0.5)
+        end
+    end)
+end)
+
+CreateModernToggle(farmContainer, "Teleport + Farm (5k)", false, function(state)
+    if not state then
+        if activeThreads["K5Farm"] then task.cancel(activeThreads["K5Farm"]) end
+        return
+    end
+    StartManagedThread("K5Farm", function()
+        local map = Workspace:WaitForChild("MAP", 9e9)
+        local dummiesFolder = map:WaitForChild("5k_dummies", 9e9)
+        local remote = ReplicatedStorage:WaitForChild("jdskhfsIIIllliiIIIdchgdIiIIIlIlIli", 9e9)
+        local targetDummy = nil
+        for i = 1, 50 do
+            local children = dummiesFolder:GetChildren()
+            if #children >= 4 then
+                targetDummy = children[1]
+                if targetDummy:FindFirstChild("Humanoid") then break end
+            end
+            task.wait(0.1)
+        end
+        if not targetDummy then return end
+        while not stopAll do
+            local char = LocalPlayer.Character
+            local root = char and char:FindFirstChild("HumanoidRootPart")
+            if root and targetDummy.Parent and targetDummy.Humanoid.Health > 0 then
+                root.CFrame = targetDummy.HumanoidRootPart.CFrame * CFrame.new(0, 5, 0)
+                pcall(function() remote:FireServer(targetDummy.Humanoid, 1) end)
+            end
+            task.wait(0.5)
+        end
+    end)
+end)
+
+-- CARD 2: Currency Collectors
+local currencyContainer = CreateCard("Farming", "Item Generation")
+
+CreateModernToggle(currencyContainer, "Auto Coin Collect", false, function(state)
+    if not state then return end
+    StartManagedThread("CoinFarm", function()
+        local remote = ReplicatedStorage:WaitForChild("Events", 9e9):WaitForChild("CoinEvent", 9e9)
+        while not stopAll do
+            pcall(function() remote:FireServer() end)
+            task.wait(3.5)
+        end
+    end)
+end)
+
+-- CARD 3: Through-Wall Overlay HUDs
+local espContainer = CreateCard("Visuals", "Through Walls")
+
+CreateModernToggle(espContainer, "Enable Highlight ESP", false, function(state)
+    for _, player in pairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and player.Character then
+            local existing = player.Character:FindFirstChild("ESPHighlight")
+            if state then
+                if not existing then
+                    local highlight = Instance.new("Highlight")
+                    highlight.Name = "ESPHighlight"
+                    highlight.FillColor = Theme.AccentActive
+                    highlight.FillTransparency = 0.5
+                    highlight.OutlineColor = Color3.new(1, 1, 1)
+                    highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+                    highlight.Parent = player.Character
+                end
+            elseif existing then
+                existing:Destroy()
+            end
+        end
+    end
+end)
+
+-- CARD 4: Structural Bone Art Engine
+local skeletonContainer = CreateCard("Visuals", "Skeletons Rendering")
+local skeletonActive = false
+local skeletonFolder = nil
+
+local R15Bones = {
+    {"UpperTorso", "Head"},
+    {"UpperTorso", "LowerTorso"},
+    {"UpperTorso", "LeftUpperArm"},
+    {"LeftUpperArm", "LeftLowerArm"},
+    {"UpperTorso", "RightUpperArm"},
+    {"RightUpperArm", "RightLowerArm"},
+    {"LowerTorso", "LeftUpperLeg"},
+    {"LeftUpperLeg", "LeftLowerLeg"},
+    {"LowerTorso", "RightUpperLeg"},
+    {"RightUpperLeg", "RightLowerLeg"}
+}
+
+local function Draw3DLine(partA, partB, parentFolder)
+    local adornment = Instance.new("CylinderHandleAdornment")
+    adornment.Radius = 0.06
+    adornment.Color3 = Theme.AccentActive
+    adornment.AlwaysOnTop = true
+    adornment.Adornee = partA
+    adornment.Parent = parentFolder
+
+    local conn
+    conn = RunService.RenderStepped:Connect(function()
+        if not partA or not partB or not partA.Parent or not adornment.Parent then
+            adornment:Destroy()
+            conn:Disconnect()
+            return
+        end
+        local dist = (partA.Position - partB.Position).Magnitude
+        adornment.Height = dist
+        adornment.CFrame = CFrame.lookAt(partA.Position, partB.Position) * CFrame.new(0, 0, -dist / 2)
+    end)
+    table.insert(skeletonConnections, conn)
+end
+
+CreateModernToggle(skeletonContainer, "Enable Skeleton ESP", false, function(state)
+    skeletonActive = state
+    if state then
+        skeletonFolder = Instance.new("Folder")
+        skeletonFolder.Name = "SkeletonESP"
+        skeletonFolder.Parent = Workspace
+        table.insert(drawingFolders, skeletonFolder)
+        for _, p in pairs(Players:GetPlayers()) do
+            if p ~= LocalPlayer and p.Character then
+                for _, bonePair in pairs(R15Bones) do
+                    local a = p.Character:FindFirstChild(bonePair[1])
+                    local b = p.Character:FindFirstChild(bonePair[2])
+                    if a and b then Draw3DLine(a, b, skeletonFolder) end
+                end
+            end
+        end
+    else
+        ClearDrawings()
+    end
+end)
+
+-- CARD 5: System Parameters Configuration
+local utilityContainer = CreateCard("Combat & Config", "System Parameters")
+
+CreateModernToggle(utilityContainer, "Anti AFK Bypass", false, function(state)
+    if not state then return end
+    StartManagedThread("AntiAFK", function()
+        local vu = game:GetService("VirtualUser")
+        while not stopAll do
+            task.wait(120)
+            pcall(function()
+                vu:CaptureController()
+                vu:ClickButton2(Vector2.new())
+            end)
+        end
+    end)
+end)
+
+CreateModernToggle(utilityContainer, "FPS Gray-Mode Boost", false, function(state)
+    game:GetService("Lighting").GlobalShadows = not state
+    for _, v in pairs(Workspace:GetDescendants()) do
+        if v:IsA("BasePart") then
+            v.Material = state and Enum.Material.SmoothPlastic or Enum.Material.Plastic
+            if state then v.Color = Color3.fromRGB(128, 128, 128) end
+        end
+    end
+end)
+
+-- CARD 6: Modifications Configuration Sliders
+local modContainer = CreateCard("Combat & Config", "Modifications")
+
+CreateSlider(modContainer, "Character WalkSpeed", 16, 250, 16, function(value)
+    modifications.WalkSpeed = value
+    local char = LocalPlayer.Character
+    local hum = char and char:FindFirstChildOfClass("Humanoid")
+    if hum then hum.WalkSpeed = value end
+end)
+
+CreateSlider(modContainer, "Character JumpPower", 50, 300, 50, function(value)
+    modifications.JumpPower = value
+    local char = LocalPlayer.Character
+    local hum = char and char:FindFirstChildOfClass("Humanoid")
+    if hum then
+        hum.UseJumpPower = true
+        hum.JumpPower = value
+    end
+end)
+
+-- Active loop ensuring character configuration updates on respawn
+StartManagedThread("ModificationPersistence", function()
+    while not stopAll do
+        local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+        local hum = char:WaitForChild("Humanoid", 5)
+        if hum then
+            hum.WalkSpeed = modifications.WalkSpeed
+            hum.UseJumpPower = true
+            hum.JumpPower = modifications.JumpPower
+        end
+        task.wait(1)
+    end
+end)
+
+-- ==========================================
+-- STRUCTURAL TERMINATION MATRIX TRIGGER
+-- ==========================================
+local QuitBtn = Instance.new("TextButton")
+QuitBtn.Size = UDim2.new(1, -20, 0, 36)
+QuitBtn.Position = UDim2.new(0, 10, 1, -46)
+QuitBtn.BackgroundColor3 = Color3.fromRGB(150, 20, 20)
+QuitBtn.Text = "UNLOAD INTERFACE"
+QuitBtn.TextColor3 = Theme.TextPrimary
+QuitBtn.Font = Theme.FontBold
+QuitBtn.TextSize = 13
+QuitBtn.Parent = Sidebar
+StyleElement(QuitBtn, UDim.new(0, 6))
+
+QuitBtn.MouseButton1Click:Connect(function()
+    StopAllScripts()
+    ScreenGui:Destroy()
+end)
+
+-- ==========================================
+-- DRAG SYSTEM CONTROLLER INTEGRATION ENGINE
+-- ==========================================
+local dragToggle, dragStart, startPos
+MainFrame.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        dragToggle = true
+        dragStart = input.Position
+        startPos = MainFrame.Position
+        input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then
+                dragToggle = false
+            end
+        end)
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseMovement and dragToggle then
+        local delta = input.Position - dragStart
+        MainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+    end
+end)
+
+print("NebulaTech Custom UI Framework Loaded Successfully.")   
