@@ -9,9 +9,9 @@ local LocalPlayer = Players.LocalPlayer
 -- zone detection for fireball and lightning ball
 local function GetCurrentDummyFolder()
     local char = LocalPlayer.Character
-    if not char then return nil end
+    if not char then return end
     local root = char:FindFirstChild("HumanoidRootPart")
-    if not root then return nil end
+    if not root then return end
 
     local k5AreaCenter = Vector3.new(-79, 593, 814)
     local regularAreaCenter = Vector3.new(-131, 642, 575)
@@ -20,7 +20,7 @@ local function GetCurrentDummyFolder()
     local distanceToRegular = (root.Position - regularAreaCenter).Magnitude
 
     local map = Workspace:FindFirstChild("MAP")
-    if not map then return nil end
+    if not map then return end
 
     if distanceToK5 < distanceToRegular then
         return map:FindFirstChild("5k_dummies")
@@ -153,44 +153,13 @@ TitleLabel.Parent = TitleBar
 TitleLabel.Active = true
 TitleLabel.Selectable = true
 
--- Create Minimize Button
-local MinimizeButton = Instance.new("TextButton")
-MinimizeButton.Name = "MinimizeButton"
-MinimizeButton.Text = "—"
-MinimizeButton.TextSize = 18
-MinimizeButton.Font = Enum.Font.GothamBold
-MinimizeButton.TextColor3 = Theme.Text
-MinimizeButton.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-MinimizeButton.BackgroundTransparency = 0.9
-MinimizeButton.BorderSizePixel = 0
-MinimizeButton.Size = UDim2.new(0, 28, 0, 28)
-MinimizeButton.Position = UDim2.new(1, -36, 0.5, -14)
-MinimizeButton.ZIndex = 2
-MinimizeButton.Parent = TitleBar
-AddCorner(MinimizeButton, UDim.new(1, 0))
-
--- Create Minimized Icon (Hidden initially)
-local MinimizedIcon = Instance.new("ImageButton")
-MinimizedIcon.Name = "MinimizedIcon"
-MinimizedIcon.Image = "rbxassetid://11176073582"
-MinimizedIcon.ImageColor3 = Theme.Accent
-MinimizedIcon.BackgroundColor3 = Theme.Background
-MinimizedIcon.BackgroundTransparency = 0.1
-MinimizedIcon.Size = UDim2.new(0, 42, 0, 42)
-MinimizedIcon.Position = UDim2.new(0, 20, 0, 20)
-MinimizedIcon.Visible = false
-MinimizedIcon.ZIndex = 10
-MinimizedIcon.Parent = ScreenGui
-AddCorner(MinimizedIcon, UDim.new(1, 0))
-AddStroke(MinimizedIcon, Theme.Accent, 1.5, 0.2)
-
+-- Minimize/Restore Functionality (with a tiny tween for polish)
 local uiVisible = true
 
 local function SetUIVisible(visible)
     uiVisible = visible
     MainFrame.Visible = visible
     Shadow.Visible = visible
-    MinimizedIcon.Visible = not visible
 end
 
 local function ToggleUI()
@@ -208,10 +177,12 @@ end)
 -- ==========================================
 -- KEYBIND TOGGLE
 -- ==========================================
+-- Change this to whatever key you'd like to use to show/hide the hub.
+-- Full list of options: https://create.roblox.com/docs/reference/engine/enums/KeyCode
 local ToggleKey = Enum.KeyCode.F2
 
 UserInputService.InputBegan:Connect(function(input, gameProcessedEvent)
-    if gameProcessedEvent then return end 
+    if gameProcessedEvent then return end -- ignore keypresses while typing in a textbox, etc.
     if input.KeyCode == ToggleKey then
         ToggleUI()
     end
@@ -259,7 +230,7 @@ UIListLayout.SortOrder = Enum.SortOrder.LayoutOrder
 ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
 
 -- ==========================================
--- DRAG FUNCTIONALITY
+-- DRAG FUNCTIONALITY (now also drags the shadow)
 -- ==========================================
 local dragging = false
 local dragInput, mousePos, framePos
@@ -293,7 +264,10 @@ UserInputService.InputChanged:Connect(function(input)
             framePos.Y.Scale,
             framePos.Y.Offset + delta.Y
         )
-
+        MainFrame.Position = newPos
+        Shadow.Position = newPos
+    end
+end)
 
 -- ==========================================
 -- LEVEL COUNTER LOGIC
