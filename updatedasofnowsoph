@@ -264,7 +264,27 @@ local function CreateModernToggle(parent, featureName, startState, callback)
 
     local switch = Instance.new("TextButton")
     switch.Size = UDim2.new(0, 36, 0, 18)
+    local function CreateModernToggle(parent, featureName, startState, callback)
+    local row = Instance.new("Frame")
+    row.Size = UDim2.new(1, 0, 0, 26)
+    row.BackgroundTransparency = 1
+    row.Parent = parent
+
+    local label = Instance.new("TextLabel")
+    label.Size = UDim2.new(1, -45, 1, 0)
+    label.BackgroundTransparency = 1
+    label.Text = featureName
+    label.TextColor3 = Theme.TextMuted
+    label.TextSize = 13
+    label.Font = Theme.FontMain
+    label.TextXAlignment = Enum.TextXAlignment.Left
+    label.Parent = row
+
+    local switch = Instance.new("TextButton")
+    switch.Size = UDim2.new(0, 36, 0, 18)
     switch.Position = UDim2.new(1, -36, 0.5, -9)
+    
+    -- === PASTE THE FIX DIRECTLY HERE ===
     switch.BackgroundColor3 = startState and Theme.AccentActive or Color3.fromRGB(40, 40, 45)
     switch.Text = ""
     switch.Parent = row
@@ -283,12 +303,15 @@ local function CreateModernToggle(parent, featureName, startState, callback)
         active = not active
         local targetPos = active and UDim2.new(1, -16, 0.5, -7) or UDim2.new(0, 2, 0.5, -7)
         local targetColor = active and Theme.AccentActive or Color3.fromRGB(40, 40, 45)
+        
         TweenService:Create(pill, TweenInfo.new(0.15, Enum.EasingStyle.Quad), {Position = targetPos}):Play()
         TweenService:Create(switch, TweenInfo.new(0.15, Enum.EasingStyle.Quad), {BackgroundColor3 = targetColor}):Play()
         TweenService:Create(label, TweenInfo.new(0.15), {TextColor3 = active and Theme.TextPrimary or Theme.TextMuted}):Play()
+        
         callback(active)
     end)
-end
+end -- This ends the CreateModernToggle function cleanly
+
 
 local function CreateSlider(parent, sliderName, min, max, startValue, callback)
     local row = Instance.new("Frame")
