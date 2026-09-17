@@ -1,4 +1,4 @@
--- NEBULATECH-STYLE PITCH BLACK HUB (TOTAL REPAIR V4.5)
+-- NEBULATECH-STYLE PITCH BLACK HUB (TOTAL REPAIR V5.1)
 -- Pure Black Panels + Red/Black Gradient Borders + Static Logo Image + Dedicated Drag Handle + Kept ESP (No Skeleton)
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -11,6 +11,7 @@ local LocalPlayer = Players.LocalPlayer
 -- Global Script Management States
 local stopAll = false
 local activeThreads = {}
+local fireballTargetPlayer = nil
 
 -- Track slider modifiers and safeguard parameter configurations
 local modifications = {
@@ -19,7 +20,6 @@ local modifications = {
     HitboxSize = 2,
     HitboxActive = false,
     EscapeEnabled = false,
-    EscapeThreshold = 20, 
     SafeZoneCoordinates = Vector3.new(119, 641, -122)
 }
 
@@ -167,9 +167,9 @@ local LogoLabel = Instance.new("TextLabel")
 LogoLabel.Size = UDim2.new(1, -45, 1, 0)
 LogoLabel.Position = UDim2.new(0, 45, 0, 0)
 LogoLabel.BackgroundTransparency = 1
-LogoLabel.Text = "EzHub"
+LogoLabel.Text = "Farm Hub"
 LogoLabel.TextColor3 = Theme.TextPrimary
-LogoLabel.TextSize = 18
+LogoLabel.TextSize = 16
 LogoLabel.Font = Theme.FontBold
 LogoLabel.TextXAlignment = Enum.TextXAlignment.Left
 LogoLabel.Parent = LogoContainer
@@ -223,22 +223,14 @@ local function CreateTab(name)
     page.ScrollBarThickness = 3
     page.ScrollBarImageColor3 = Theme.AccentActive
     page.CanvasSize = UDim2.new(0, 0, 0, 0)
-    -- FIX: Changed to Vertical to stack cards neatly downward instead of expanding past right frame boundaries
-    page.AutomaticCanvasSize = Enum.AutomaticSize.Y 
+    page.AutomaticCanvasSize = Enum.AutomaticSize.X 
     page.Parent = TabPanelsContainer
 
     local rowLayout = Instance.new("UIListLayout")
-    rowLayout.FillDirection = Enum.FillDirection.Vertical
+    rowLayout.FillDirection = Enum.FillDirection.Horizontal
     rowLayout.SortOrder = Enum.SortOrder.LayoutOrder
-    rowLayout.Padding = UDim.new(0, 12)
+    rowLayout.Padding = UDim.new(0, 15)
     rowLayout.Parent = page
-
-    local padding = Instance.new("UIPadding")
-    padding.PaddingTop = UDim.new(0, 8)
-    padding.PaddingLeft = UDim.new(0, 8)
-    padding.PaddingRight = UDim.new(0, 8)
-    padding.PaddingBottom = UDim.new(0, 8)
-    padding.Parent = page
 
     tabs[name] = {Button = tabBtn, Page = page}
 
@@ -255,8 +247,7 @@ end
 local function CreateCard(tabName, cardTitle)
     local page = tabs[tabName].Page
     local card = Instance.new("Frame")
-    -- FIX: Native expansion to fit container boundaries seamlessly
-    card.Size = UDim2.new(1, 0, 0, 135) 
+    card.Size = UDim2.new(0, 235, 1, -10) 
     card.BackgroundColor3 = Theme.CardBg
     card.Parent = page
     StyleElement(card, Theme.CornerRadius, Color3.fromRGB(30, 30, 35), 1)
@@ -444,7 +435,7 @@ tabs["Farming"].Button.TextColor3 = Theme.TextPrimary
 -- WIRING EXECUTION MACROS
 -- ==========================================
 
--- COLUMN CARD 1: Dummy Farm Loops (Farming Tab)
+-- REPAIRED ITEM CONSOLIDATION: Everything related to farming maps into farmContainer
 local farmContainer = CreateCard("Farming", "General Farming")
 
 CreateModernToggle(farmContainer, "Regular Dummy Farm", false, function(state)
@@ -458,7 +449,7 @@ CreateModernToggle(farmContainer, "Regular Dummy Farm", false, function(state)
         local remote = ReplicatedStorage:WaitForChild("jdskhfsIIIllliiIIIdchgdIiIIIlIlIli", 9e9)
         while not stopAll do
             local children = dummies:GetChildren()
-            local target = children[3]
+            local target = children
             if target and target:FindFirstChild("HumanoidRootPart") and target:FindFirstChild("Humanoid") then
                 local char = LocalPlayer.Character
                 local root = char and char:FindFirstChild("HumanoidRootPart")
@@ -485,7 +476,7 @@ CreateModernToggle(farmContainer, "Teleport + Farm (5k)", false, function(state)
         for i = 1, 50 do
             local children = dummiesFolder:GetChildren()
             if #children >= 4 then
-                targetDummy = children[4]
+                targetDummy = children
                 if targetDummy:FindFirstChild("Humanoid") then break end
             end
             task.wait(0.1)
@@ -503,11 +494,8 @@ CreateModernToggle(farmContainer, "Teleport + Farm (5k)", false, function(state)
     end)
 end)
 
--- COLUMN CARD 2: Restored Skills Farming (Farming Tab)
--- ADJUSTMENT FIX: Reassigned explicitly from "Fireball Farm" tab namespace directly into main "Farming" tab.
-local skillsContainer = CreateCard("Farming", "Skills Farming")
-
-CreateModernToggle(skillsContainer, "Fireball Farm", false, function(state)
+-- REPOSITIONED: Fireball Farm safely migrated inside general farming
+CreateModernToggle(farmContainer, "Fireball Farm", false, function(state)
     if not state then 
         if activeThreads["FireballFarm"] then task.cancel(activeThreads["FireballFarm"]) end
         return 
@@ -542,7 +530,8 @@ CreateModernToggle(skillsContainer, "Fireball Farm", false, function(state)
     end)
 end)
 
-CreateModernToggle(skillsContainer, "Lightning Ball Farm", false, function(state)
+-- REPOSITIONED: Lightning Ball Farm safely migrated inside general farming
+CreateModernToggle(farmContainer, "Lightning Ball Farm", false, function(state)
     if not state then 
         if activeThreads["LightningFarm"] then task.cancel(activeThreads["LightningFarm"]) end
         return 
@@ -578,10 +567,12 @@ CreateModernToggle(skillsContainer, "Lightning Ball Farm", false, function(state
     end)
 end)
 
--- COLUMN CARD 3: Collectors (Farming Tab)
-local currencyContainer = CreateCard("Farming", "Item Generation")
-CreateModernToggle(currencyContainer, "Auto Coin Collect", false, function(state)
-    if not state then return end
+-- REPOSITIONED: Auto Coin Collect safely migrated inside general farming
+CreateModernToggle(farmContainer, "Auto Coin Collect", false, function(state)
+    if not state then 
+        if activeThreads["CoinFarm"] then task.cancel(activeThreads["CoinFarm"]) end
+        return 
+    end
     StartManagedThread("CoinFarm", function()
         local remote = ReplicatedStorage:WaitForChild("Events", 9e9):WaitForChild("CoinEvent", 9e9)
         while not stopAll do
@@ -591,7 +582,7 @@ CreateModernToggle(currencyContainer, "Auto Coin Collect", false, function(state
     end)
 end)
 
--- COLUMN CARD 4: Overlays (Visuals Tab)
+-- COLUMN CARD 2: Overlays (Visuals Tab)
 local espContainer = CreateCard("Visuals", "Through Walls")
 CreateModernToggle(espContainer, "Enable Highlight ESP", false, function(state)
     for _, player in pairs(Players:GetPlayers()) do
@@ -614,7 +605,7 @@ CreateModernToggle(espContainer, "Enable Highlight ESP", false, function(state)
     end
 end)
 
--- COLUMN CARD 5: System Framework Config (Combat & Config Tab)
+-- COLUMN CARD 3: System Framework Config (Combat & Config Tab)
 local utilityContainer = CreateCard("Combat & Config", "System Parameters")
 
 CreateModernToggle(utilityContainer, "Anti AFK Bypass", false, function(state)
@@ -679,7 +670,7 @@ CreateModernToggle(utilityContainer, "Display FPS HUD", false, function(state)
     end
 end)
 
--- COLUMN CARD 6: Mechanics Adjustments & Expander (Combat & Config Tab)
+-- COLUMN CARD 4: Mechanics Adjustments & Expander (Combat & Config Tab)
 local modContainer = CreateCard("Combat & Config", "Modifications")
 
 CreateSlider(modContainer, "Character WalkSpeed", 16, 250, 16, function(value)
@@ -707,15 +698,66 @@ CreateSlider(modContainer, "Hitbox Dimension", 2, 30, 2, function(value)
     modifications.HitboxSize = value
 end)
 
--- COLUMN CARD 7: Safety Safeguards Matrix (Combat & Config Tab)
+-- COLUMN CARD 5: Safety Safeguards Matrix (Combat & Config Tab)
 local safeguardContainer = CreateCard("Combat & Config", "Safe Safeguards")
 
 CreateModernToggle(safeguardContainer, "Auto Health Escape", false, function(state)
     modifications.EscapeEnabled = state
 end)
 
-CreateSlider(safeguardContainer, "Escape Threshold %", 10, 50, 20, function(value)
-    modifications.EscapeThreshold = value
+-- INTEGRATED ELEMENT: Fireball Auto-Hit Target routine loaded inside Safeguards container row
+CreateModernToggle(safeguardContainer, "Fireball Auto-Hit Target", false, function(state)
+    if not state then
+        fireballTargetPlayer = nil
+        LogoLabel.Text = "Farm Hub"
+        if activeThreads["FireballAutoHit"] then task.cancel(activeThreads["FireballAutoHit"]) end
+        return
+    end
+    
+    local Mouse = LocalPlayer:GetMouse()
+    local remote = ReplicatedStorage:WaitForChild("SkillsInRS", 9e9):WaitForChild("RemoteEvent", 9e9)
+    
+    LogoLabel.Text = "CLICK A TARGET..."
+    local clickConnection
+    clickConnection = Mouse.Button1Down:Connect(function()
+        local target = Mouse.Target
+        if target and target.Parent then
+            local model = target.Parent:IsA("Accessory") and target.Parent.Parent or target.Parent
+            local targetCharPlayer = Players:GetPlayerFromCharacter(model)
+            
+            if targetCharPlayer then
+                fireballTargetPlayer = targetCharPlayer
+                LogoLabel.Text = "TRGT: " .. fireballTargetPlayer.DisplayName
+            else
+                LogoLabel.Text = "Farm Hub"
+            end
+        end
+        clickConnection:Disconnect()
+    end)
+
+    StartManagedThread("FireballAutoHit", function()
+        while not stopAll do
+            if fireballTargetPlayer and fireballTargetPlayer.Character then
+                local tChar = fireballTargetPlayer.Character
+                local tHum = tChar:FindFirstChildOfClass("Humanoid")
+                local tRoot = tChar:FindFirstChild("HumanoidRootPart")
+
+                if not tHum or tHum.Health <= 0 then
+                    warn("Target lost or low health. Stopping Fireball Auto-Hit.")
+                    fireballTargetPlayer = nil
+                    LogoLabel.Text = "Farm Hub"
+                    break
+                end
+
+                if tRoot then
+                    pcall(function()
+                        remote:FireServer(tRoot.Position, "NewFireball")
+                    end)
+                end
+            end
+            task.wait(math.random(15, 25) / 10)
+        end
+    end)
 end)
 
 -- Core background tracking monitor loop handler
@@ -730,9 +772,10 @@ StartManagedThread("CoreModifierPersistenceLoop", function()
             hum.UseJumpPower = true
             hum.JumpPower = modifications.JumpPower
             
+            -- AUTOMATED CALCULATION: Replaced threshold % slider with a dynamic auto-die check boundary (25% health alert)
             if modifications.EscapeEnabled then
                 local hpPercent = (hum.Health / hum.MaxHealth) * 100
-                if hpPercent <= modifications.EscapeThreshold and hum.Health > 0 then
+                if hpPercent <= 25 and hum.Health > 0 then
                     root.CFrame = CFrame.new(modifications.SafeZoneCoordinates)
                     warn("CRITICAL PANIC SAFE Teleport WARP EXECUTED!")
                     task.wait(3) 
