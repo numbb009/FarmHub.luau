@@ -436,7 +436,7 @@ tabs["Farming"].Button.TextColor3 = Theme.TextPrimary
 -- WIRING EXECUTION MACROS
 -- ==========================================
 
--- COLUMN CARD 1: Dummy Farm Loops (Farming Tab)
+-- COLUMN CARD 1: Dummy & Skills Farm Loops (Farming Tab)
 local farmContainer = CreateCard("Farming", "General Farming")
 
 CreateModernToggle(farmContainer, "Regular Dummy Farm", false, function(state)
@@ -450,7 +450,7 @@ CreateModernToggle(farmContainer, "Regular Dummy Farm", false, function(state)
         local remote = ReplicatedStorage:WaitForChild("jdskhfsIIIllliiIIIdchgdIiIIIlIlIli", 9e9)
         while not stopAll do
             local children = dummies:GetChildren()
-            local target = children[3]
+            local target = children
             if target and target:FindFirstChild("HumanoidRootPart") and target:FindFirstChild("Humanoid") then
                 local char = LocalPlayer.Character
                 local root = char and char:FindFirstChild("HumanoidRootPart")
@@ -477,7 +477,7 @@ CreateModernToggle(farmContainer, "Teleport + Farm (5k)", false, function(state)
         for i = 1, 50 do
             local children = dummiesFolder:GetChildren()
             if #children >= 4 then
-                targetDummy = children[4]
+                targetDummy = children
                 if targetDummy:FindFirstChild("Humanoid") then break end
             end
             task.wait(0.1)
@@ -494,6 +494,78 @@ CreateModernToggle(farmContainer, "Teleport + Farm (5k)", false, function(state)
         end
     end)
 end)
+
+CreateModernToggle(farmContainer, "Fireball Farm", false, function(state)
+    if not state then 
+        if activeThreads["FireballFarm"] then task.cancel(activeThreads["FireballFarm"]) end
+        return 
+    end
+    StartManagedThread("FireballFarm", function()
+        local remote = ReplicatedStorage:WaitForChild("SkillsInRS", 9e9):WaitForChild("RemoteEvent", 9e9)
+        while not stopAll do
+            local char = LocalPlayer.Character
+            local root = char and char:FindFirstChild("HumanoidRootPart")
+            if root then
+                local dummies = GetCurrentDummyFolder()
+                if dummies then
+                    local nearest = nil
+                    local shortestDist = math.huge
+                    for _, dummy in pairs(dummies:GetChildren()) do
+                        local hrp = dummy:FindFirstChild("HumanoidRootPart")
+                        if hrp then
+                            local dist = (hrp.Position - root.Position).Magnitude
+                            if dist < shortestDist then
+                                shortestDist = dist
+                                nearest = dummy
+                            end
+                        end
+                    end
+                    if nearest and nearest:FindFirstChild("HumanoidRootPart") then
+                        pcall(function() remote:FireServer(nearest.HumanoidRootPart.Position, "NewFireball") end)
+                    end
+                end
+            end
+            task.wait(math.random(15, 25)/10)
+        end
+    end)
+end)
+
+CreateModernToggle(farmContainer, "Lightning Ball Farm", false, function(state)
+    if not state then 
+        if activeThreads["LightningFarm"] then task.cancel(activeThreads["LightningFarm"]) end
+        return 
+    end
+    StartManagedThread("LightningFarm", function()
+        local remote = ReplicatedStorage:WaitForChild("SkillsInRS", 9e9):WaitForChild("RemoteEvent", 9e9)
+        while not stopAll do
+            local char = LocalPlayer.Character
+            local root = char and char:FindFirstChild("HumanoidRootPart")
+            if root then
+                local dummies = GetCurrentDummyFolder()
+                if dummies then
+                    local nearest = nil
+                    local shortestDist = math.huge
+                    for _, dummy in pairs(dummies:GetChildren()) do
+                        local hrp = dummy:FindFirstChild("HumanoidRootPart")
+                        local hum = dummy:FindFirstChild("Humanoid")
+                        if hrp and hum and hum.Health > 0 then
+                            local dist = (hrp.Position - root.Position).Magnitude
+                            if dist < shortestDist then
+                                shortestDist = dist
+                                nearest = dummy
+                            end
+                        end
+                    end
+                    if nearest and nearest:FindFirstChild("HumanoidRootPart") then
+                        pcall(function() remote:FireServer(nearest.HumanoidRootPart.Position, "NewLightningball") end)
+                    end
+                end
+            end
+            task.wait(math.random(20, 30)/10)
+        end
+    end)
+end)
+
 
 -- COLUMN CARD 2: Restored Skills Farming (Farming Tab)
 local skillsContainer = CreateCard("Farming", "Skills Farming")
@@ -699,15 +771,12 @@ CreateSlider(modContainer, "Hitbox Dimension", 2, 30, 2, function(value)
 end)
 
 -- COLUMN CARD 7: Safety Safeguards Matrix (Combat & Config Tab)
-local safeguardContainer = CreateCard("Combat & Config", "Safe Safeguards")
+local safeguardContainer = CreateCard("Combat & Config", "Safeguards")
 
 CreateModernToggle(safeguardContainer, "Auto Health Escape", false, function(state)
     modifications.EscapeEnabled = state
 end)
 
-CreateSlider(safeguardContainer, "Escape Threshold %", 10, 50, 20, function(value)
-    modifications.EscapeThreshold = value
-end)
 
 -- Core background tracking monitor loop handler
 StartManagedThread("CoreModifierPersistenceLoop", function()
@@ -721,15 +790,16 @@ StartManagedThread("CoreModifierPersistenceLoop", function()
             hum.UseJumpPower = true
             hum.JumpPower = modifications.JumpPower
             
+             -- Panic Escape Trigger Monitor Check (Locked to critically low health)
             if modifications.EscapeEnabled then
                 local hpPercent = (hum.Health / hum.MaxHealth) * 100
-                if hpPercent <= modifications.EscapeThreshold and hum.Health > 0 then
+                if hpPercent <= 20 and hum.Health > 0 then -- Permanently locked to 20% (nearly dying)
                     root.CFrame = CFrame.new(modifications.SafeZoneCoordinates)
                     warn("CRITICAL PANIC SAFE Teleport WARP EXECUTED!")
                     task.wait(3) 
                 end
             end
-        end
+
 
         for _, player in pairs(Players:GetPlayers()) do
             if player ~= LocalPlayer and player.Character then
