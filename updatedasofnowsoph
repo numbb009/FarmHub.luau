@@ -1,3 +1,5 @@
+```lua
+
 -- NEBULATECH-STYLE PITCH BLACK HUB (TOTAL REPAIR V4)
 -- Pure Black Panels + Red/Black Gradient Borders + Static Logo Image + Dedicated Drag Handle + Kept ESP (No Skeleton)
 local Players = game:GetService("Players")
@@ -712,4 +714,4 @@ startPos.Y.Offset + delta.Y
 end
 end)
 print("NebulaTech Framework UI Repaired. (drag) Area Configuration Active.")
-
+```
