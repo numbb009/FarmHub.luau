@@ -102,6 +102,7 @@ Sidebar.Size = UDim2.new(0, 160, 1, 0)
 Sidebar.BackgroundColor3 = Theme.Canvas
 Sidebar.BorderSizePixel = 0
 Sidebar.Parent = MainFrame
+Sidebar.Position = UDim2.new(0, 0, 0, 24)   
 local sideCorner = Instance.new("UICorner")
 sideCorner.CornerRadius = Theme.CornerRadius
 sideCorner.Parent = Sidebar
@@ -158,7 +159,7 @@ NavLayout.Parent = NavList
 
 local ContentWindow = Instance.new("Frame")
 ContentWindow.Size = UDim2.new(1, -175, 1, -20)
-ContentWindow.Position = UDim2.new(0, 165, 0, 10)
+ContentWindow.Position = UDim2.new(0, 165, 0, 34)
 ContentWindow.BackgroundTransparency = 1
 ContentWindow.Parent = MainFrame
 
@@ -461,7 +462,7 @@ task.spawn(function()
 end)
 
 FpsGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
-
+FpsGui.Visible = false   
 
 -- ==========================================
 -- TAB SECTIONS & UTILITIES WIRING
@@ -678,10 +679,27 @@ QuitBtn.MouseButton1Click:Connect(function()
 end)
 
 -- ==========================================
--- DRAG SYSTEM CONTROLLER INTEGRATION ENGINE
+-- DRAG BAR
 -- ==========================================
+local DragBar = Instance.new("Frame")
+DragBar.Size = UDim2.new(1, 0, 0, 24)
+DragBar.Position = UDim2.new(0, 0, 0, 0)
+DragBar.BackgroundColor3 = Theme.Canvas
+DragBar.BorderSizePixel = 0
+DragBar.Parent = MainFrame
+StyleElement(DragBar, UDim.new(0, 10))
+
+local DragLabel = Instance.new("TextLabel")
+DragLabel.Size = UDim2.new(1, 0, 1, 0)
+DragLabel.BackgroundTransparency = 1
+DragLabel.Text = "— — —"
+DragLabel.TextColor3 = Theme.TextMuted
+DragLabel.TextSize = 12
+DragLabel.Font = Theme.FontMain
+DragLabel.Parent = DragBar
+
 local dragToggle, dragStart, startPos
-MainFrame.InputBegan:Connect(function(input)
+DragBar.InputBegan:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
         dragToggle = true
         dragStart = input.Position
@@ -694,11 +712,22 @@ MainFrame.InputBegan:Connect(function(input)
     end
 end)
 
+-- ==========================================
+-- F5 HOTKEY TOGGLE
+-- ==========================================
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if gameProcessed then return end
+    if input.UserInputType == Enum.UserInputType.Keyboard and input.KeyCode == Enum.KeyCode.F5 then
+        ScreenGui.Visible = not ScreenGui.Visible
+        FpsGui.Visible = not FpsGui.Visible
+    end
+end)   
+
 UserInputService.InputChanged:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseMovement and dragToggle then
         local delta = input.Position - dragStart
         MainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
     end
-end)
+end)   
 
 print("NebulaTech Custom UI Framework Loaded Successfully.")   
