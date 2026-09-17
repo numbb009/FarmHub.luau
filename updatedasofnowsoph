@@ -198,10 +198,12 @@ local function CreateTab(name)
     page.AutomaticCanvasSize = Enum.AutomaticSize.Y
     page.Parent = TabPanelsContainer
 
-    local grid = Instance.new("UIGridLayout")
-    grid.CellSize = UDim2.new(0, 240, 0, 160)
-    grid.CellPadding = UDim2.new(0, 15, 0, 15)
-    grid.Parent = page
+    -- Fixed: Replaced rigid grid with a horizontal row engine for the layout columns
+    local rowLayout = Instance.new("UIListLayout")
+    rowLayout.FillDirection = Enum.FillDirection.Horizontal
+    rowLayout.SortOrder = Enum.SortOrder.LayoutOrder
+    rowLayout.Padding = UDim.new(0, 15)
+    rowLayout.Parent = page
 
     tabs[name] = {Button = tabBtn, Page = page}
 
@@ -214,6 +216,7 @@ local function CreateTab(name)
         TweenService:Create(tabBtn, TweenInfo.new(0.2), {BackgroundTransparency = 0, TextColor3 = Theme.TextPrimary}):Play()
     end)
 end
+
 
 local function CreateCard(tabName, cardTitle)
     local page = tabs[tabName].Page
