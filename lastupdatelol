@@ -1,17 +1,34 @@
--- ALL-IN-ONE FARM clicker (Native UI - Red Theme + Draggable + Modern Polish)
+-- NEBULATECH-STYLE PITCH BLACK HUB (TOTAL REPAIR V5.1)
+-- Pure Black Panels + Red/Black Gradient Borders + Static Logo Image + Dedicated Drag Handle + Kept ESP (No Skeleton)
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
 local UserInputService = game:GetService("UserInputService")
 local TweenService = game:GetService("TweenService")
+local RunService = game:GetService("RunService")
 local LocalPlayer = Players.LocalPlayer
 
--- zone detection for fireball and lightning ball
+-- Global Script Management States
+local stopAll = false
+local activeThreads = {}
+local fireballTargetPlayer = nil
+
+-- Track slider modifiers and safeguard parameter configurations
+local modifications = {
+    WalkSpeed = 16,
+    JumpPower = 50,
+    HitboxSize = 2,
+    HitboxActive = false,
+    EscapeEnabled = false,
+    SafeZoneCoordinates = Vector3.new(119, 641, -122)
+}
+
+-- Zone detection matrix
 local function GetCurrentDummyFolder()
     local char = LocalPlayer.Character
-    if not char then return end
+    if not char then return nil end
     local root = char:FindFirstChild("HumanoidRootPart")
-    if not root then return end
+    if not root then return nil end
 
     local k5AreaCenter = Vector3.new(-79, 593, 814)
     local regularAreaCenter = Vector3.new(-131, 642, 575)
@@ -20,7 +37,7 @@ local function GetCurrentDummyFolder()
     local distanceToRegular = (root.Position - regularAreaCenter).Magnitude
 
     local map = Workspace:FindFirstChild("MAP")
-    if not map then return end
+    if not map then return nil end
 
     if distanceToK5 < distanceToRegular then
         return map:FindFirstChild("5k_dummies")
@@ -30,573 +47,662 @@ local function GetCurrentDummyFolder()
 end
 
 -- ==========================================
--- THEME
+-- VISUAL CONFIGURATION & THEME
 -- ==========================================
 local Theme = {
-    Accent      = Color3.fromRGB(220, 40, 40),   -- bright red accent
-    AccentDark  = Color3.fromRGB(120, 10, 10),   -- deep red
-    Background  = Color3.fromRGB(24, 24, 26),    -- near-black frame bg
-    Panel       = Color3.fromRGB(32, 32, 35),    -- scroll frame bg
-    Button      = Color3.fromRGB(44, 44, 48),
-    ButtonHover = Color3.fromRGB(60, 20, 20),
-    Text        = Color3.fromRGB(240, 240, 240),
-    SubText     = Color3.fromRGB(190, 190, 190),
-    Corner      = UDim.new(0, 10),
-    CornerSmall = UDim.new(0, 8),
+    Canvas       = Color3.fromRGB(0, 0, 0),          
+    PanelBg      = Color3.fromRGB(8, 8, 10),         
+    CardBg       = Color3.fromRGB(14, 14, 16),       
+    AccentActive = Color3.fromRGB(220, 40, 40),      
+    TextPrimary  = Color3.fromRGB(245, 245, 250),
+    TextMuted    = Color3.fromRGB(150, 150, 160),
+    FontMain     = Enum.Font.GothamMedium,
+    FontBold     = Enum.Font.GothamBold,
+    CornerRadius = UDim.new(0, 10)
 }
 
-local function AddCorner(parent, radius)
-    local c = Instance.new("UICorner")
-    c.CornerRadius = radius or Theme.Corner
-    c.Parent = parent
-    return c
+local function StyleElement(instance, radius, strokeColor, strokeThick, addBorderGradient)
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = radius or Theme.CornerRadius
+    corner.Parent = instance
+    
+    if strokeColor then
+        local stroke = Instance.new("UIStroke")
+        stroke.Color = strokeColor
+        stroke.Thickness = strokeThick or 1.5
+        stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+        stroke.Transparency = 0.1
+        stroke.Parent = instance
+        
+        if addBorderGradient then
+            local grad = Instance.new("UIGradient")
+            grad.Color = ColorSequence.new{
+                ColorSequenceKeypoint.new(0, Color3.fromRGB(240, 30, 30)), 
+                ColorSequenceKeypoint.new(0.5, Color3.fromRGB(40, 5, 5)),   
+                ColorSequenceKeypoint.new(1, Color3.fromRGB(0, 0, 0))       
+            }
+            grad.Rotation = 45 
+            grad.Parent = stroke
+        end
+        return corner, stroke
+    end
+    return corner
 end
 
-local function AddStroke(parent, color, thickness, transparency)
-    local s = Instance.new("UIStroke")
-    s.Color = color or Theme.Accent
-    s.Thickness = thickness or 1
-    s.Transparency = transparency or 0.4
-    s.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-    s.Parent = parent
-    return s
-end
-
-local function AddGradient(parent, colorSequence, rotation)
-    local g = Instance.new("UIGradient")
-    g.Color = colorSequence
-    g.Rotation = rotation or 90
-    g.Parent = parent
-    return g
-end
-
--- Create UI Elements
+-- Base Core Layout
 local ScreenGui = Instance.new("ScreenGui")
-local Shadow = Instance.new("ImageLabel")
-local MainFrame = Instance.new("Frame")
-local TitleBar = Instance.new("Frame")
-local TitleLabel = Instance.new("TextLabel")
-local LevelPanel = Instance.new("Frame")
-local LevelLabel = Instance.new("TextLabel")
-local ScrollFrame = Instance.new("ScrollingFrame")
-local UIListLayout = Instance.new("UIListLayout")
-local UIPadding = Instance.new("UIPadding")
-
--- UI Configuration
-ScreenGui.Name = "FarmHubNative"
+ScreenGui.Name = "NebulaTechHub"
 ScreenGui.ResetOnSpawn = false
 ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-ScreenGui.DisplayOrder = 10
-
--- Drop shadow behind the whole panel
-Shadow.Name = "Shadow"
-Shadow.Image = "rbxassetid://1316045217" -- soft drop shadow asset
-Shadow.ImageColor3 = Color3.fromRGB(0, 0, 0)
-Shadow.ImageTransparency = 0.4
-Shadow.ScaleType = Enum.ScaleType.Slice
-Shadow.SliceCenter = Rect.new(10, 10, 118, 118)
-Shadow.BackgroundTransparency = 1
-Shadow.Size = UDim2.new(1, 40, 1, 40)
-Shadow.Position = UDim2.new(0.5, 0, 0.5, 0)
-Shadow.AnchorPoint = Vector2.new(0.5, 0.5)
-Shadow.ZIndex = 0
-Shadow.Parent = ScreenGui
-
-MainFrame.Size = UDim2.new(0, 300, 0, 450)
-MainFrame.Position = UDim2.new(0.5, -150, 0.5, -225)
-MainFrame.BackgroundColor3 = Theme.Background
-MainFrame.BorderSizePixel = 0
-MainFrame.ClipsDescendants = true
-MainFrame.Parent = ScreenGui
-AddCorner(MainFrame, Theme.Corner)
-AddStroke(MainFrame, Theme.Accent, 1, 0.3)
-
--- Anchor the shadow to sit exactly behind MainFrame
-Shadow.Position = MainFrame.Position
-MainFrame:GetPropertyChangedSignal("Position"):Connect(function()
-    Shadow.Position = MainFrame.Position
-end)
-Shadow.Size = UDim2.new(MainFrame.Size.X.Scale, MainFrame.Size.X.Offset + 30, MainFrame.Size.Y.Scale, MainFrame.Size.Y.Offset + 30)
-Shadow.AnchorPoint = Vector2.new(0, 0)
-
--- Title bar with gradient
-TitleBar.Name = "TitleBar"
-TitleBar.Size = UDim2.new(1, 0, 0, 44)
-TitleBar.Position = UDim2.new(0, 0, 0, 0)
-TitleBar.BackgroundColor3 = Theme.AccentDark
-TitleBar.BorderSizePixel = 0
-TitleBar.Parent = MainFrame
-AddCorner(TitleBar, Theme.Corner)
-AddGradient(TitleBar, ColorSequence.new{
-    ColorSequenceKeypoint.new(0, Theme.Accent),
-    ColorSequenceKeypoint.new(1, Theme.AccentDark),
-}, 0)
-
--- Mask the bottom corners of the title bar so it looks flush with MainFrame
-local TitleBarMask = Instance.new("Frame")
-TitleBarMask.BackgroundColor3 = Theme.AccentDark
-TitleBarMask.BorderSizePixel = 0
-TitleBarMask.Size = UDim2.new(1, 0, 0, 12)
-TitleBarMask.Position = UDim2.new(0, 0, 1, -12)
-TitleBarMask.ZIndex = TitleBar.ZIndex
-TitleBarMask.Parent = TitleBar
-
-TitleLabel.Size = UDim2.new(1, -40, 1, 0)
-TitleLabel.Position = UDim2.new(0, 12, 0, 0)
-TitleLabel.BackgroundTransparency = 1
-TitleLabel.Text = "FARM HUB"
-TitleLabel.TextColor3 = Theme.Text
-TitleLabel.TextSize = 18
-TitleLabel.Font = Enum.Font.GothamBold
-TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
-TitleLabel.Parent = TitleBar
-TitleLabel.Active = true
-TitleLabel.Selectable = true
-
-
-
-
--- Minimize/Restore Functionality (with a tiny tween for polish)
-local uiVisible = true
-
-local function SetUIVisible(visible)
-    uiVisible = visible
-    MainFrame.Visible = visible
-    Shadow.Visible = visible
-    MinimizedIcon.Visible = not visible
-end
-
-local function ToggleUI()
-    SetUIVisible(not uiVisible)
-end
-
-MinimizeButton.MouseButton1Click:Connect(function()
-    SetUIVisible(false)
-end)
-
-MinimizedIcon.MouseButton1Click:Connect(function()
-    SetUIVisible(true)
-end)
--- Minimize/Restore Functionality
-local uiVisible = true
-
-local function SetUIVisible(visible)
-    uiVisible = visible
-    MainFrame.Visible = visible
-    Shadow.Visible = visible
-end
-
-local function ToggleUI()
-    SetUIVisible(not uiVisible)
-end
-
--- ==========================================
--- KEYBIND TOGGLE
--- ==========================================
--- ==========================================
--- KEYBIND TOGGLE
--- ==========================================
--- Change this to whatever key you'd like to use to show/hide the hub.
--- Full list of options: https://create.roblox.com/docs/reference/engine/enums/KeyCode
-local ToggleKey = Enum.KeyCode.F2
-
-UserInputService.InputBegan:Connect(function(input, gameProcessedEvent)
-    if gameProcessedEvent then return end -- ignore keypresses while typing in a textbox, etc.
-    if input.KeyCode == ToggleKey then
-        ToggleUI()
-    end
-end)
-
--- Level panel (pill-style stat readout)
-LevelPanel.Size = UDim2.new(1, -20, 0, 32)
-LevelPanel.Position = UDim2.new(0, 10, 0, 52)
-LevelPanel.BackgroundColor3 = Theme.Panel
-LevelPanel.BorderSizePixel = 0
-LevelPanel.Parent = MainFrame
-AddCorner(LevelPanel, Theme.CornerSmall)
-
-LevelLabel.Size = UDim2.new(1, -16, 1, 0)
-LevelLabel.Position = UDim2.new(0, 8, 0, 0)
-LevelLabel.BackgroundTransparency = 1
-LevelLabel.Text = "Level: 0  |  Ups: 0"
-LevelLabel.TextColor3 = Theme.SubText
-LevelLabel.TextSize = 15
-LevelLabel.Font = Enum.Font.GothamMedium
-LevelLabel.TextXAlignment = Enum.TextXAlignment.Left
-LevelLabel.Parent = LevelPanel
-
-ScrollFrame.Size = UDim2.new(1, -20, 1, -96)
-ScrollFrame.Position = UDim2.new(0, 10, 0, 92)
-ScrollFrame.BackgroundColor3 = Theme.Panel
-ScrollFrame.BorderSizePixel = 0
-ScrollFrame.ScrollBarThickness = 4
-ScrollFrame.ScrollBarImageColor3 = Theme.Accent
-ScrollFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
-ScrollFrame.AutomaticCanvasSize = Enum.AutomaticSize.Y
-ScrollFrame.Parent = MainFrame
-AddCorner(ScrollFrame, Theme.CornerSmall)
-
-UIPadding.PaddingTop = UDim.new(0, 8)
-UIPadding.PaddingBottom = UDim.new(0, 8)
-UIPadding.PaddingLeft = UDim.new(0, 8)
-UIPadding.PaddingRight = UDim.new(0, 8)
-UIPadding.Parent = ScrollFrame
-
-UIListLayout.Parent = ScrollFrame
-UIListLayout.Padding = UDim.new(0, 8)
-UIListLayout.SortOrder = Enum.SortOrder.LayoutOrder
-
 ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
 
+local MainFrame = Instance.new("Frame")
+MainFrame.Size = UDim2.new(0, 680, 0, 440)
+MainFrame.Position = UDim2.new(0.5, -340, 0.5, -220)
+MainFrame.BackgroundColor3 = Theme.PanelBg
+MainFrame.BorderSizePixel = 0
+MainFrame.Parent = ScreenGui
+StyleElement(MainFrame, Theme.CornerRadius, Color3.fromRGB(255,255,255), 1.5, true) 
+
+-- Dedicated Top Drag Handle
+local DragBar = Instance.new("TextButton")
+DragBar.Name = "DragHandle"
+DragBar.Size = UDim2.new(1, 0, 0, 24)
+DragBar.Position = UDim2.new(0, 0, 0, 0)
+DragBar.BackgroundColor3 = Theme.Canvas
+DragBar.BorderSizePixel = 0
+DragBar.Text = "  (drag)"
+DragBar.TextColor3 = Theme.TextMuted
+DragBar.TextSize = 11
+DragBar.Font = Theme.FontMain
+DragBar.TextXAlignment = Enum.TextXAlignment.Left
+DragBar.AutoButtonColor = false
+DragBar.ZIndex = 15
+DragBar.Parent = MainFrame
+StyleElement(DragBar, UDim.new(0, 10))
+
+local DragMask = Instance.new("Frame")
+DragMask.Size = UDim2.new(1, 0, 0, 10)
+DragMask.Position = UDim2.new(0, 0, 1, -10)
+DragMask.BackgroundColor3 = Theme.Canvas
+DragMask.BorderSizePixel = 0
+DragMask.ZIndex = 15
+DragMask.Parent = DragBar
+
+-- Left Hand Sidebar Navigation Rail
+local Sidebar = Instance.new("Frame")
+Sidebar.Size = UDim2.new(0, 160, 1, -24)
+Sidebar.Position = UDim2.new(0, 0, 0, 24)
+Sidebar.BackgroundColor3 = Theme.Canvas
+Sidebar.BorderSizePixel = 0
+Sidebar.Parent = MainFrame
+local sideCorner = Instance.new("UICorner")
+sideCorner.CornerRadius = Theme.CornerRadius
+sideCorner.Parent = Sidebar
+
+local SideMask = Instance.new("Frame")
+SideMask.Size = UDim2.new(0, 15, 1, 0)
+SideMask.Position = UDim2.new(1, -15, 0, 0)
+SideMask.BackgroundColor3 = Theme.Canvas
+SideMask.BorderSizePixel = 0
+SideMask.Parent = Sidebar
+
+-- Logo Setup
+local LogoConfig = { AssetID = "rbxthumb://type=Asset&id=15207692564&w=420&h=420" }
+local LogoContainer = Instance.new("Frame")
+LogoContainer.Size = UDim2.new(1, 0, 0, 50)
+LogoContainer.Position = UDim2.new(0, 0, 0, 5)
+LogoContainer.BackgroundTransparency = 1
+LogoContainer.Parent = Sidebar
+
+local StaticIcon = Instance.new("ImageLabel")
+StaticIcon.Size = UDim2.new(0, 26, 0, 26)
+StaticIcon.Position = UDim2.new(0, 14, 0.5, -13)
+StaticIcon.BackgroundTransparency = 1
+StaticIcon.Image = LogoConfig.AssetID
+StaticIcon.ScaleType = Enum.ScaleType.Fit 
+StaticIcon.Parent = LogoContainer
+
+local LogoLabel = Instance.new("TextLabel")
+LogoLabel.Size = UDim2.new(1, -45, 1, 0)
+LogoLabel.Position = UDim2.new(0, 45, 0, 0)
+LogoLabel.BackgroundTransparency = 1
+LogoLabel.Text = "Farm Hub"
+LogoLabel.TextColor3 = Theme.TextPrimary
+LogoLabel.TextSize = 16
+LogoLabel.Font = Theme.FontBold
+LogoLabel.TextXAlignment = Enum.TextXAlignment.Left
+LogoLabel.Parent = LogoContainer
+
+local NavList = Instance.new("Frame")
+NavList.Size = UDim2.new(1, -20, 1, -80)
+NavList.Position = UDim2.new(0, 10, 0, 65)
+NavList.BackgroundTransparency = 1
+NavList.Parent = Sidebar
+
+local NavLayout = Instance.new("UIListLayout")
+NavLayout.Padding = UDim.new(0, 6)
+NavLayout.Parent = NavList
+
+-- Main Content Container
+local ContentWindow = Instance.new("Frame")
+ContentWindow.Size = UDim2.new(1, -175, 1, -44)
+ContentWindow.Position = UDim2.new(0, 165, 0, 34)
+ContentWindow.BackgroundTransparency = 1
+ContentWindow.Parent = MainFrame
+
+local TabPanelsContainer = Instance.new("Frame")
+TabPanelsContainer.Size = UDim2.new(1, 0, 1, 0)
+TabPanelsContainer.Position = UDim2.new(0, 0, 0, 0)
+TabPanelsContainer.BackgroundTransparency = 1
+TabPanelsContainer.Parent = ContentWindow
+
 -- ==========================================
--- DRAG FUNCTIONALITY (now also drags the shadow)
+-- INTERACTIVE REPAIRED ENGINE BUILDERS
 -- ==========================================
-local dragging = false
-local dragInput, mousePos, framePos
+local tabs = {}
+local FpsUIElement = nil
 
-TitleLabel.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-        dragging = true
-        mousePos = input.Position
-        framePos = MainFrame.Position
+local function CreateTab(name)
+    local tabBtn = Instance.new("TextButton")
+    tabBtn.Size = UDim2.new(1, 0, 0, 36)
+    tabBtn.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
+    tabBtn.BackgroundTransparency = 1
+    tabBtn.Text = "    " .. name
+    tabBtn.TextColor3 = Theme.TextMuted
+    tabBtn.TextSize = 14
+    tabBtn.Font = Theme.FontMain
+    tabBtn.TextXAlignment = Enum.TextXAlignment.Left
+    tabBtn.Parent = NavList
+    StyleElement(tabBtn, UDim.new(0, 6))
 
-        input.Changed:Connect(function()
-            if input.UserInputState == Enum.UserInputState.End then
-                dragging = false
-            end
-        end)
-    end
-end)
+    local page = Instance.new("ScrollingFrame")
+    page.Size = UDim2.new(1, 0, 1, 0)
+    page.BackgroundTransparency = 1
+    page.Visible = false
+    page.ScrollBarThickness = 3
+    page.ScrollBarImageColor3 = Theme.AccentActive
+    page.CanvasSize = UDim2.new(0, 0, 0, 0)
+    page.AutomaticCanvasSize = Enum.AutomaticSize.X 
+    page.Parent = TabPanelsContainer
 
-TitleLabel.InputChanged:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
-        dragInput = input
-    end
-end)
+    local rowLayout = Instance.new("UIListLayout")
+    rowLayout.FillDirection = Enum.FillDirection.Horizontal
+    rowLayout.SortOrder = Enum.SortOrder.LayoutOrder
+    rowLayout.Padding = UDim.new(0, 15)
+    rowLayout.Parent = page
 
-UserInputService.InputChanged:Connect(function(input)
-    if input == dragInput and dragging then
-        local delta = input.Position - mousePos
-        local newPos = UDim2.new(
-            framePos.X.Scale,
-            framePos.X.Offset + delta.X,
-            framePos.Y.Scale,
-            framePos.Y.Offset + delta.Y
-        )
-        MainFrame.Position = newPos
-        Shadow.Position = newPos
-    end
-end)
+    tabs[name] = {Button = tabBtn, Page = page}
 
--- ==========================================
--- LEVEL COUNTER LOGIC
--- ==========================================
-local leaderstats = LocalPlayer:WaitForChild("leaderstats")
-local levelValue = leaderstats:WaitForChild("Level")
-local levelUps = 0
-local lastLevel = levelValue.Value
-
-local function updateLevelDisplay()
-    if levelValue.Value > lastLevel then
-        levelUps += 1
-        lastLevel = levelValue.Value
-    end
-    LevelLabel.Text = "Level: " .. levelValue.Value .. "  |  Ups: " .. levelUps
+    tabBtn.MouseButton1Click:Connect(function()
+        for _, t in pairs(tabs) do
+            t.Page.Visible = false
+            TweenService:Create(t.Button, TweenInfo.new(0.2), {BackgroundTransparency = 1, TextColor3 = Theme.TextMuted}):Play()
+        end
+        page.Visible = true
+        TweenService:Create(tabBtn, TweenInfo.new(0.2), {BackgroundTransparency = 0, TextColor3 = Theme.TextPrimary}):Play()
+    end)
 end
 
-levelValue.Changed:Connect(updateLevelDisplay)
-updateLevelDisplay()
+local function CreateCard(tabName, cardTitle)
+    local page = tabs[tabName].Page
+    local card = Instance.new("Frame")
+    card.Size = UDim2.new(0, 235, 1, -10) 
+    card.BackgroundColor3 = Theme.CardBg
+    card.Parent = page
+    StyleElement(card, Theme.CornerRadius, Color3.fromRGB(30, 30, 35), 1)
+
+    local title = Instance.new("TextLabel")
+    title.Size = UDim2.new(1, -20, 0, 30)
+    title.Position = UDim2.new(0, 12, 0, 5)
+    title.BackgroundTransparency = 1
+    title.Text = cardTitle
+    title.TextColor3 = Theme.TextPrimary
+    title.TextSize = 14
+    title.Font = Theme.FontBold
+    title.TextXAlignment = Enum.TextXAlignment.Left
+    title.Parent = card
+
+    local container = Instance.new("Frame")
+    container.Size = UDim2.new(1, -24, 1, -45)
+    container.Position = UDim2.new(0, 12, 0, 38)
+    container.BackgroundTransparency = 1
+    container.Parent = card
+
+    local layout = Instance.new("UIListLayout")
+    layout.Padding = UDim.new(0, 10)
+    layout.Parent = container
+
+    return container
+end
+
+local function CreateModernToggle(parent, featureName, startState, callback)
+    local row = Instance.new("Frame")
+    row.Size = UDim2.new(1, 0, 0, 26)
+    row.BackgroundTransparency = 1
+    row.Parent = parent
+
+    local label = Instance.new("TextLabel")
+    label.Size = UDim2.new(1, -45, 1, 0)
+    label.BackgroundTransparency = 1
+    label.Text = featureName
+    label.TextColor3 = startState and Theme.TextPrimary or Theme.TextMuted
+    label.TextSize = 13
+    label.Font = Theme.FontMain
+    label.TextXAlignment = Enum.TextXAlignment.Left
+    label.Parent = row
+
+    local switch = Instance.new("TextButton")
+    switch.Size = UDim2.new(0, 36, 0, 18)
+    switch.Position = UDim2.new(1, -36, 0.5, -9)
+    switch.BackgroundColor3 = startState and Theme.AccentActive or Color3.fromRGB(40, 40, 45)
+    switch.Text = ""
+    switch.Parent = row
+    StyleElement(switch, UDim.new(1, 0))
+
+    local pill = Instance.new("Frame")
+    pill.Size = UDim2.new(0, 14, 0, 14)
+    pill.Position = startState and UDim2.new(1, -16, 0.5, -7) or UDim2.new(0, 2, 0.5, -7)
+    pill.BackgroundColor3 = Theme.TextPrimary
+    pill.BorderSizePixel = 0
+    pill.Parent = switch
+    StyleElement(pill, UDim.new(1, 0))
+
+    local active = startState
+    switch.MouseButton1Click:Connect(function()
+        active = not active
+        local targetPos = active and UDim2.new(1, -16, 0.5, -7) or UDim2.new(0, 2, 0.5, -7)
+        local targetColor = active and Theme.AccentActive or Color3.fromRGB(40, 40, 45)
+        
+        TweenService:Create(pill, TweenInfo.new(0.15, Enum.EasingStyle.Quad), {Position = targetPos}):Play()
+        TweenService:Create(switch, TweenInfo.new(0.15, Enum.EasingStyle.Quad), {BackgroundColor3 = targetColor}):Play()
+        TweenService:Create(label, TweenInfo.new(0.15), {TextColor3 = active and Theme.TextPrimary or Theme.TextMuted}):Play()
+        
+        callback(active)
+    end)
+end
+
+local function CreateSlider(parent, sliderName, min, max, startValue, callback)
+    local row = Instance.new("Frame")
+    row.Size = UDim2.new(1, 0, 0, 36)
+    row.BackgroundTransparency = 1
+    row.Parent = parent
+
+    local label = Instance.new("TextLabel")
+    label.Size = UDim2.new(1, -45, 0, 16)
+    label.BackgroundTransparency = 1
+    label.Text = sliderName
+    label.TextColor3 = Theme.TextMuted
+    label.TextSize = 12
+    label.Font = Theme.FontMain
+    label.TextXAlignment = Enum.TextXAlignment.Left
+    label.Parent = row
+
+    local valueLabel = Instance.new("TextLabel")
+    valueLabel.Size = UDim2.new(0, 45, 0, 16)
+    valueLabel.Position = UDim2.new(1, -45, 0, 0)
+    valueLabel.BackgroundTransparency = 1
+    valueLabel.Text = tostring(startValue)
+    valueLabel.TextColor3 = Theme.TextPrimary
+    valueLabel.TextSize = 12
+    valueLabel.Font = Theme.FontMain
+    valueLabel.TextXAlignment = Enum.TextXAlignment.Right
+    valueLabel.Parent = row
+
+    local track = Instance.new("TextButton")
+    track.Size = UDim2.new(1, 0, 0, 6)
+    track.Position = UDim2.new(0, 0, 0, 24)
+    track.BackgroundColor3 = Color3.fromRGB(40, 40, 45)
+    track.Text = ""
+    track.AutoButtonColor = false
+    track.Parent = row
+    StyleElement(track, UDim.new(1, 0))
+
+    local fill = Instance.new("Frame")
+    local startPercent = math.clamp((startValue - min) / (max - min), 0, 1)
+    fill.Size = UDim2.new(startPercent, 0, 1, 0)
+    fill.BackgroundColor3 = Theme.AccentActive
+    fill.BorderSizePixel = 0
+    fill.Parent = track
+    StyleElement(fill, UDim.new(1, 0))
+
+    local sliderDragging = false
+
+    local function UpdateSliderInput(input)
+        local absoluteWidth = track.AbsoluteSize.X
+        local relativeX = input.Position.X - track.AbsolutePosition.X
+        local percentage = math.clamp(relativeX / absoluteWidth, 0, 1)
+        
+        TweenService:Create(fill, TweenInfo.new(0.08, Enum.EasingStyle.Quad), {Size = UDim2.new(percentage, 0, 1, 0)}):Play()
+        
+        local snapValue = math.floor(min + (percentage * (max - min)))
+        valueLabel.Text = tostring(snapValue)
+        callback(snapValue)
+    end
+
+    track.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            sliderDragging = true
+            UpdateSliderInput(input)
+        end
+    end)
+
+    UserInputService.InputChanged:Connect(function(input)
+        if sliderDragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+            UpdateSliderInput(input)
+        end
+    end)
+
+    UserInputService.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            sliderDragging = false
+        end
+    end)
+end
 
 -- ==========================================
--- SCRIPT FUNCTIONS
+-- ENGINE THREAD CONTROL ARCHITECTURE
 -- ==========================================
-local stopAll = false
-local activeThreads = {}
-
 local function StopAllScripts()
     stopAll = true
-    for _, thread in pairs(activeThreads) do
+    if FpsUIElement then FpsUIElement:Destroy() FpsUIElement = nil end
+    for name, thread in pairs(activeThreads) do
         pcall(function() task.cancel(thread) end)
     end
     activeThreads = {}
-    warn("ALL SCRIPTS STOPPED")
+    warn("ALL MODULES SHUTDOWN COMPLETELY")
 end
 
--- Modern button with rounded corners, subtle gradient, and hover tween
-local function CreateButton(parent, name, callback)
-    local btn = Instance.new("TextButton")
-    btn.Size = UDim2.new(1, 0, 0, 34)
-    btn.BackgroundColor3 = Theme.Button
-    btn.AutoButtonColor = false
-    btn.Text = name
-    btn.TextColor3 = Theme.Text
-    btn.TextSize = 15
-    btn.Font = Enum.Font.GothamMedium
-    btn.Parent = parent
-    AddCorner(btn, Theme.CornerSmall)
-    AddStroke(btn, Theme.Accent, 1, 0.7)
-
-    btn.MouseEnter:Connect(function()
-        TweenService:Create(btn, TweenInfo.new(0.15), {BackgroundColor3 = Theme.ButtonHover}):Play()
-    end)
-    btn.MouseLeave:Connect(function()
-        TweenService:Create(btn, TweenInfo.new(0.15), {BackgroundColor3 = Theme.Button}):Play()
-    end)
-
-    btn.MouseButton1Click:Connect(function()
-        stopAll = false
-        callback()
-    end)
-
-    return btn
+local function StartManagedThread(name, func)
+    if activeThreads[name] then
+        pcall(function() task.cancel(activeThreads[name]) end)
+        activeThreads[name] = nil
+    end
+    stopAll = false
+    activeThreads[name] = task.spawn(func)
 end
 
--- 1. Regular Dummy Teleport + Farm
-CreateButton(ScrollFrame, "Teleport + Farm (Regular)", function()
-    task.spawn(function()
+-- Assemble Master Tabs
+CreateTab("Farming")
+CreateTab("Visuals")
+CreateTab("Combat & Config")
+
+tabs["Farming"].Page.Visible = true
+tabs["Farming"].Button.BackgroundTransparency = 0
+tabs["Farming"].Button.TextColor3 = Theme.TextPrimary
+
+-- ==========================================
+-- WIRING EXECUTION MACROS
+-- ==========================================
+
+-- REPAIRED ITEM CONSOLIDATION: Everything related to farming maps into farmContainer
+local farmContainer = CreateCard("Farming", "General Farming")
+
+CreateModernToggle(farmContainer, "Regular Dummy Farm", false, function(state)
+    if not state then 
+        if activeThreads["RegularFarm"] then task.cancel(activeThreads["RegularFarm"]) end
+        return 
+    end
+    StartManagedThread("RegularFarm", function()
         local map = Workspace:WaitForChild("MAP", 9e9)
         local dummies = map:WaitForChild("dummies", 9e9)
-        local target = dummies:GetChildren()[3]
-        local humanoid = target:WaitForChild("Humanoid", 9e9)
         local remote = ReplicatedStorage:WaitForChild("jdskhfsIIIllliiIIIdchgdIiIIIlIlIli", 9e9)
-
-        local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
-        local root = char:WaitForChild("HumanoidRootPart")
-        root.CFrame = target.HumanoidRootPart.CFrame * CFrame.new(0, 5, 0)
-
         while not stopAll do
-            if humanoid and humanoid.Parent and humanoid.Health > 0 then
-                pcall(function() remote:FireServer(humanoid, 1) end)
+            local children = dummies:GetChildren()
+            local target = children
+            if target and target:FindFirstChild("HumanoidRootPart") and target:FindFirstChild("Humanoid") then
+                local char = LocalPlayer.Character
+                local root = char and char:FindFirstChild("HumanoidRootPart")
+                if root and target.Humanoid.Health > 0 then
+                    root.CFrame = target.HumanoidRootPart.CFrame * CFrame.new(0, 5, 0)
+                    pcall(function() remote:FireServer(target.Humanoid, 1) end)
+                end
             end
-            wait(math.random(4, 7)/10)
+            task.wait(0.5)
         end
     end)
 end)
 
--- 2. 5k Dummy Teleport + Farm
-CreateButton(ScrollFrame, "Teleport + Farm (5k Dummy)", function()
-    task.spawn(function()
-        local map = workspace:FindFirstChild("MAP")
-        if not map then return end
-
-        local dummiesFolder = map:FindFirstChild("5k_dummies")
-        if not dummiesFolder then return end
-
-        local remote = game:GetService("ReplicatedStorage"):FindFirstChild("jdskhfsIIIllliiIIIdchgdIiIIIlIlIli")
-        if not remote then return end
-
-        local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
-        local root = char:FindFirstChild("HumanoidRootPart")
-        if not root then return end
-
-        local dummyIndex = 4
-
+CreateModernToggle(farmContainer, "Teleport + Farm (5k)", false, function(state)
+    if not state then 
+        if activeThreads["K5Farm"] then task.cancel(activeThreads["K5Farm"]) end
+        return 
+    end
+    StartManagedThread("K5Farm", function()
+        local map = Workspace:WaitForChild("MAP", 9e9)
+        local dummiesFolder = map:WaitForChild("5k_dummies", 9e9)
+        local remote = ReplicatedStorage:WaitForChild("jdskhfsIIIllliiIIIdchgdIiIIIlIlIli", 9e9)
         local targetDummy = nil
         for i = 1, 50 do
             local children = dummiesFolder:GetChildren()
-            if #children >= dummyIndex then
-                targetDummy = children[dummyIndex]
-                if targetDummy:FindFirstChild("Humanoid") and targetDummy:FindFirstChild("HumanoidRootPart") then
-                    break
-                end
+            if #children >= 4 then
+                targetDummy = children
+                if targetDummy:FindFirstChild("Humanoid") then break end
             end
             task.wait(0.1)
         end
-
-        if not targetDummy then
-            warn("ERROR: Dummy index " .. dummyIndex .. " not found! Try changing the index number.")
-            return
-        end
-
-        local targetHumanoid = targetDummy.Humanoid
-        local targetRoot = targetDummy.HumanoidRootPart
-
-        root.CFrame = targetRoot.CFrame * CFrame.new(0, 5, 0)
-        task.wait(0.2)
-
+        if not targetDummy then return end
         while not stopAll do
-            if not targetDummy.Parent or targetHumanoid.Health <= 0 then
-                warn("Target died! Stopping.")
-                break
+            local char = LocalPlayer.Character
+            local root = char and char:FindFirstChild("HumanoidRootPart")
+            if root and targetDummy.Parent and targetDummy.Humanoid.Health > 0 then
+                root.CFrame = targetDummy.HumanoidRootPart.CFrame * CFrame.new(0, 5, 0)
+                pcall(function() remote:FireServer(targetDummy.Humanoid, 1) end)
             end
-
-            local args = {
-                [1] = targetHumanoid,
-                [2] = 1
-            }
-
-            pcall(function()
-                remote:FireServer(unpack(args))
-            end)
-
-            task.wait(math.random(4, 7)/10)
+            task.wait(0.5)
         end
     end)
 end)
 
--- 3. Fireball Farm
-CreateButton(ScrollFrame, "Fireball Farm", function()
-    task.spawn(function()
+-- REPOSITIONED: Fireball Farm safely migrated inside general farming
+CreateModernToggle(farmContainer, "Fireball Farm", false, function(state)
+    if not state then 
+        if activeThreads["FireballFarm"] then task.cancel(activeThreads["FireballFarm"]) end
+        return 
+    end
+    StartManagedThread("FireballFarm", function()
         local remote = ReplicatedStorage:WaitForChild("SkillsInRS", 9e9):WaitForChild("RemoteEvent", 9e9)
-        local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
-        local root = char:WaitForChild("HumanoidRootPart")
-
         while not stopAll do
-            local dummies = GetCurrentDummyFolder()
-            if not dummies then task.wait(0.5) continue end
-
-            local nearest = nil
-            local shortestDist = math.huge
-            for _, dummy in pairs(dummies:GetChildren()) do
-                local hrp = dummy:FindFirstChild("HumanoidRootPart")
-                if hrp then
-                    local dist = (hrp.Position - root.Position).Magnitude
-                    if dist < shortestDist then
-                        shortestDist = dist
-                        nearest = dummy
+            local char = LocalPlayer.Character
+            local root = char and char:FindFirstChild("HumanoidRootPart")
+            if root then
+                local dummies = GetCurrentDummyFolder()
+                if dummies then
+                    local nearest = nil
+                    local shortestDist = math.huge
+                    for _, dummy in pairs(dummies:GetChildren()) do
+                        local hrp = dummy:FindFirstChild("HumanoidRootPart")
+                        if hrp then
+                            local dist = (hrp.Position - root.Position).Magnitude
+                            if dist < shortestDist then
+                                shortestDist = dist
+                                nearest = dummy
+                            end
+                        end
+                    end
+                    if nearest and nearest:FindFirstChild("HumanoidRootPart") then
+                        pcall(function() remote:FireServer(nearest.HumanoidRootPart.Position, "NewFireball") end)
                     end
                 end
             end
-
-            if nearest and nearest:FindFirstChild("HumanoidRootPart") then
-                pcall(function()
-                    remote:FireServer(nearest.HumanoidRootPart.Position, "NewFireball")
-                end)
-            end
-
-            wait(math.random(15, 25)/10)
+            task.wait(math.random(15, 25)/10)
         end
     end)
 end)
 
--- 4. Lightning Ball Farm
-CreateButton(ScrollFrame, "Lightning Ball Farm", function()
-    task.spawn(function()
+-- REPOSITIONED: Lightning Ball Farm safely migrated inside general farming
+CreateModernToggle(farmContainer, "Lightning Ball Farm", false, function(state)
+    if not state then 
+        if activeThreads["LightningFarm"] then task.cancel(activeThreads["LightningFarm"]) end
+        return 
+    end
+    StartManagedThread("LightningFarm", function()
         local remote = ReplicatedStorage:WaitForChild("SkillsInRS", 9e9):WaitForChild("RemoteEvent", 9e9)
-        local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
-        local root = char:WaitForChild("HumanoidRootPart")
-
         while not stopAll do
-            local dummies = GetCurrentDummyFolder()
-            if not dummies then task.wait(0.5) continue end
-
-            local nearest = nil
-            local shortestDist = math.huge
-            for _, dummy in pairs(dummies:GetChildren()) do
-                local hrp = dummy:FindFirstChild("HumanoidRootPart")
-                if hrp then
-                    local dist = (hrp.Position - root.Position).Magnitude
-                    if dist < shortestDist then
-                        shortestDist = dist
-                        nearest = dummy
+            local char = LocalPlayer.Character
+            local root = char and char:FindFirstChild("HumanoidRootPart")
+            if root then
+                local dummies = GetCurrentDummyFolder()
+                if dummies then
+                    local nearest = nil
+                    local shortestDist = math.huge
+                    for _, dummy in pairs(dummies:GetChildren()) do
+                        local hrp = dummy:FindFirstChild("HumanoidRootPart")
+                        local hum = dummy:FindFirstChild("Humanoid")
+                        if hrp and hum and hum.Health > 0 then
+                            local dist = (hrp.Position - root.Position).Magnitude
+                            if dist < shortestDist then
+                                shortestDist = dist
+                                nearest = dummy
+                            end
+                        end
+                    end
+                    if nearest and nearest:FindFirstChild("HumanoidRootPart") then
+                        pcall(function() remote:FireServer(nearest.HumanoidRootPart.Position, "NewLightningball") end)
                     end
                 end
             end
-
-            if nearest and nearest:FindFirstChild("HumanoidRootPart") and nearest.Humanoid.Health > 0 then
-                pcall(function()
-                    remote:FireServer(nearest.HumanoidRootPart.Position, "NewLightningball")
-                end)
-            end
-
-            wait(math.random(20, 30)/10)
+            task.wait(math.random(20, 30)/10)
         end
     end)
 end)
 
--- 5. Coin Farm
-CreateButton(ScrollFrame, "Coin Farm", function()
-    task.spawn(function()
+-- REPOSITIONED: Auto Coin Collect safely migrated inside general farming
+CreateModernToggle(farmContainer, "Auto Coin Collect", false, function(state)
+    if not state then 
+        if activeThreads["CoinFarm"] then task.cancel(activeThreads["CoinFarm"]) end
+        return 
+    end
+    StartManagedThread("CoinFarm", function()
         local remote = ReplicatedStorage:WaitForChild("Events", 9e9):WaitForChild("CoinEvent", 9e9)
         while not stopAll do
             pcall(function() remote:FireServer() end)
-            wait(math.random(30, 45)/10)
+            task.wait(3.5)
         end
     end)
 end)
 
--- 6. Anti-AFK
-CreateButton(ScrollFrame, "Anti-AFK", function()
-    task.spawn(function()
-        local VirtualUser = game:GetService("VirtualUser")
-        while not stopAll do
-            wait(math.random(180, 300))
-            if not stopAll then
-                pcall(function() VirtualUser:CaptureController(); VirtualUser:ClickButton2(Vector2.new()) end)
-            end
-        end
-    end)
-end)
-
--- 7. FPS Boost
-CreateButton(ScrollFrame, "FPS Boost (Gray Mode)", function()
-    task.spawn(function()
-        local Lighting = game:GetService("Lighting")
-        Lighting.GlobalShadows = false
-        for _, v in pairs(Workspace:GetDescendants()) do
-            if v:IsA("BasePart") then
-                v.Material = Enum.Material.SmoothPlastic
-                v.Color = Color3.fromRGB(128, 128, 128)
-            end
-        end
-        warn("FPS Boost Applied")
-    end)
-end)
--- ==========================================
--- NEW CUSTOM UTILITIES
--- ==========================================
-
--- Fireball Auto-Hit Target
-local fireballTargetPlayer = nil
-
-CreateButton(ScrollFrame, "Fireball Hit", function()
-    local Mouse = LocalPlayer:GetMouse()
-    local remote = ReplicatedStorage:WaitForChild("SkillsInRS", 9e9):WaitForChild("RemoteEvent", 9e9)
-    
-    -- Pick a target by clicking on their character model
-    TitleLabel.Text = "CLICK A TARGET..."
-    local clickConnection
-    clickConnection = Mouse.Button1Down:Connect(function()
-        local target = Mouse.Target
-        if target and target.Parent then
-            local model = target.Parent:IsA("Accessory") and target.Parent.Parent or target.Parent
-            local targetCharPlayer = Players:GetPlayerFromCharacter(model)
-            
-            if targetCharPlayer then
-                fireballTargetPlayer = targetCharPlayer
-                TitleLabel.Text = "TARGET: " .. fireballTargetPlayer.DisplayName
+-- COLUMN CARD 2: Overlays (Visuals Tab)
+local espContainer = CreateCard("Visuals", "Through Walls")
+CreateModernToggle(espContainer, "Enable Highlight ESP", false, function(state)
+    for _, player in pairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and player.Character then
+            local existing = player.Character:FindFirstChild("ESPHighlight")
+            if state then
+                if not existing then
+                    local highlight = Instance.new("Highlight")
+                    highlight.Name = "ESPHighlight"
+                    highlight.FillColor = Theme.AccentActive
+                    highlight.FillTransparency = 0.5
+                    highlight.OutlineColor = Color3.new(1, 1, 1)
+                    highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+                    highlight.Parent = player.Character
+                end
             else
-                TitleLabel.Text = "FARM HUB"
+                if existing then existing:Destroy() end
             end
         end
-        clickConnection:Disconnect()
-    end)
+    end
+end)
 
-    -- Auto-hit execution loop
-    task.spawn(function()
+-- COLUMN CARD 3: System Framework Config (Combat & Config Tab)
+local utilityContainer = CreateCard("Combat & Config", "System Parameters")
+
+CreateModernToggle(utilityContainer, "Anti AFK Bypass", false, function(state)
+    if not state then return end
+    StartManagedThread("AntiAFK", function()
+        local vu = game:GetService("VirtualUser")
         while not stopAll do
-            if fireballTargetPlayer and fireballTargetPlayer.Character then
-                local tChar = fireballTargetPlayer.Character
-                local tHum = tChar:FindFirstChildOfClass("Humanoid")
-                local tRoot = tChar:FindFirstChild("HumanoidRootPart")
-
-                -- Stop targeting if player dies, leaves, or loses all health
-                if not tHum or tHum.Health <= 0 then
-                    warn("Target lost or low health. Stopping Fireball Auto-Hit.")
-                    fireballTargetPlayer = nil
-                    TitleLabel.Text = "FARM HUB"
-                    break
-                end
-
-                if tRoot then
-                    pcall(function()
-                        remote:FireServer(tRoot.Position, "NewFireball")
-                    end)
-                end
-            end
-            task.wait(math.random(15, 25) / 10)
+            task.wait(120)
+            pcall(function() vu:CaptureController() vu:ClickButton2(Vector2.new()) end)
         end
     end)
+end)
+
+CreateModernToggle(utilityContainer, "Display FPS HUD", false, function(state)
+    if state then
+        FpsUIElement = Instance.new("ScreenGui")
+        FpsUIElement.Name = "NebulaTech_FPS_Overlay"
+        FpsUIElement.ResetOnSpawn = false
+        
+        local frame = Instance.new("Frame")
+        frame.Size = UDim2.new(0, 95, 0, 28)
+        frame.Position = UDim2.new(1, -110, 0, 15)
+        frame.BackgroundColor3 = Color3.fromRGB(8, 8, 10)
+        frame.BorderSizePixel = 0
+        frame.Parent = FpsUIElement
+        
+        local corner = Instance.new("UICorner")
+        corner.CornerRadius = UDim.new(0, 6)
+        corner.Parent = frame
+        
+        local border = Instance.new("UIStroke")
+        border.Color = Theme.AccentActive
+        border.Thickness = 1.2
+        border.Parent = frame
+        
+        local label = Instance.new("TextLabel")
+        label.Size = UDim2.new(1, 0, 1, 0)
+        label.BackgroundTransparency = 1
+        label.Text = "FPS: Calculating..."
+        label.TextColor3 = Theme.TextPrimary
+        label.TextSize = 13
+        label.Parent = frame
+        
+        FpsUIElement.Parent = LocalPlayer:WaitForChild("PlayerGui")
+        
+        StartManagedThread("FPSCounterLoop", function()
+            local lastTime = os.clock()
+            local frameCount = 0
+            while state and not stopAll do
+                RunService.RenderStepped:Wait()
+                frameCount = frameCount + 1
+                local currentTime = os.clock()
+                if currentTime - lastTime >= 1 then
+                    label.Text = "FPS: " .. math.floor(frameCount / (currentTime - lastTime))
+                    frameCount = 0
+                    lastTime = currentTime
+                end
+            end
+        end)
+    else
+        if FpsUIElement then FpsUIElement:Destroy() FpsUIElement = nil end
+    end
+end)
+
+-- COLUMN CARD 4: Mechanics Adjustments & Expander (Combat & Config Tab)
+local modContainer = CreateCard("Combat & Config", "Modifications")
+
+CreateSlider(modContainer, "Character WalkSpeed", 16, 250, 16, function(value)
+    modifications.WalkSpeed = value
+    local char = LocalPlayer.Character
+    local hum = char and char:FindFirstChildOfClass("Humanoid")
+    if hum then hum.WalkSpeed = value end
+end)
+
+CreateSlider(modContainer, "Character JumpPower", 50, 300, 50, function(value)
+    modifications.JumpPower = value
+    local char = LocalPlayer.Character
+    local hum = char and char:FindFirstChildOfClass("Humanoid")
+    if hum then
+        hum.UseJumpPower = true
+        hum.JumpPower = value
+    end
+end)
+
+CreateModernToggle(modContainer, "Hitbox Expander", false, function(state)
+    modifications.HitboxActive = state
+end)
+
+CreateSlider(modContainer, "Hitbox Dimension", 2, 30, 2, function(value)
+    modifications.HitboxSize = value
+end)
+
+-- COLUMN CARD 5: Safety Safeguards Matrix (Combat & Config Tab)
+local safeguardContainer = CreateCard("Combat & Config", "Safe Safeguards")
+
+CreateModernToggle(safeguardContainer, "Auto Health Escape", false, function(state)
+    modifications.EscapeEnabled = state
 end)
 
 -- Hitbox Visualizer (Research Tool)
@@ -623,46 +729,159 @@ CreateButton(ScrollFrame, "Toggle Hitboxes", function()
     end
 end)
 
--- See Avatars Behind Walls (ESP)
-local espActive = false
-CreateButton(ScrollFrame, "Toggle Wall ESP", function()
-    espActive = not espActive
+-- INTEGRATED ELEMENT: Fireball Auto-Hit Target routine loaded inside Safeguards container row
+CreateModernToggle(safeguardContainer, "Fireball Auto-Hit Target", false, function(state)
+    if not state then
+        fireballTargetPlayer = nil
+        LogoLabel.Text = "Farm Hub"
+        if activeThreads["FireballAutoHit"] then task.cancel(activeThreads["FireballAutoHit"]) end
+        return
+    end
     
-    for _, player in pairs(Players:GetPlayers()) do
-        if player ~= LocalPlayer and player.Character then
-            local existingHighlight = player.Character:FindFirstChild("ESPHighlight")
+    local Mouse = LocalPlayer:GetMouse()
+    local remote = ReplicatedStorage:WaitForChild("SkillsInRS", 9e9):WaitForChild("RemoteEvent", 9e9)
+    
+    LogoLabel.Text = "CLICK A TARGET..."
+    local clickConnection
+    clickConnection = Mouse.Button1Down:Connect(function()
+        local target = Mouse.Target
+        if target and target.Parent then
+            local model = target.Parent:IsA("Accessory") and target.Parent.Parent or target.Parent
+            local targetCharPlayer = Players:GetPlayerFromCharacter(model)
             
-            if espActive then
-                if not existingHighlight then
-                    local highlight = Instance.new("Highlight")
-                    highlight.Name = "ESPHighlight"
-                    highlight.Adornee = player.Character
-                    highlight.FillColor = Theme.Accent
-                    highlight.FillTransparency = 0.5
-                    highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
-                    highlight.OutlineTransparency = 0
-                    highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
-                    highlight.Parent = player.Character
-                end
+            if targetCharPlayer then
+                fireballTargetPlayer = targetCharPlayer
+                LogoLabel.Text = "TRGT: " .. fireballTargetPlayer.DisplayName
             else
-                if existingHighlight then
-                    existingHighlight:Destroy()
+                LogoLabel.Text = "Farm Hub"
+            end
+        end
+        clickConnection:Disconnect()
+    end)
+
+    StartManagedThread("FireballAutoHit", function()
+        while not stopAll do
+            if fireballTargetPlayer and fireballTargetPlayer.Character then
+                local tChar = fireballTargetPlayer.Character
+                local tHum = tChar:FindFirstChildOfClass("Humanoid")
+                local tRoot = tChar:FindFirstChild("HumanoidRootPart")
+
+                if not tHum or tHum.Health <= 0 then
+                    warn("Target lost or low health. Stopping Fireball Auto-Hit.")
+                    fireballTargetPlayer = nil
+                    LogoLabel.Text = "Farm Hub"
+                    break
+                end
+
+                if tRoot then
+                    pcall(function()
+                        remote:FireServer(tRoot.Position, "NewFireball")
+                    end)
+                end
+            end
+            task.wait(math.random(15, 25) / 10)
+        end
+    end)
+end)
+
+-- Core background tracking monitor loop handler
+StartManagedThread("CoreModifierPersistenceLoop", function()
+    while not stopAll do
+        local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+        local hum = char:WaitForChild("Humanoid", 5)
+        local root = char:WaitForChild("HumanoidRootPart", 5)
+        
+        if hum and root then
+            hum.WalkSpeed = modifications.WalkSpeed
+            hum.UseJumpPower = true
+            hum.JumpPower = modifications.JumpPower
+            
+            -- AUTOMATED CALCULATION: Replaced threshold % slider with a dynamic auto-die check boundary (25% health alert)
+            if modifications.EscapeEnabled then
+                local hpPercent = (hum.Health / hum.MaxHealth) * 100
+                if hpPercent <= 25 and hum.Health > 0 then
+                    root.CFrame = CFrame.new(modifications.SafeZoneCoordinates)
+                    warn("CRITICAL PANIC SAFE Teleport WARP EXECUTED!")
+                    task.wait(3) 
                 end
             end
         end
+
+        for _, player in pairs(Players:GetPlayers()) do
+            if player ~= LocalPlayer and player.Character then
+                local targetHrp = player.Character:FindFirstChild("HumanoidRootPart")
+                local targetHum = player.Character:FindFirstChildOfClass("Humanoid")
+                
+                if targetHrp and targetHum and targetHum.Health > 0 then
+                    if modifications.HitboxActive then
+                        targetHrp.Size = Vector3.new(modifications.HitboxSize, modifications.HitboxSize, modifications.HitboxSize)
+                        targetHrp.Transparency = 0.7
+                        targetHrp.Color = Theme.AccentActive
+                        targetHrp.Material = Enum.Material.ForceField
+                        targetHrp.CanCollide = false
+                    else
+                        targetHrp.Size = Vector3.new(2, 2, 1)
+                        targetHrp.Transparency = 1
+                    end
+                end
+            end
+        end
+        task.wait(0.2)
     end
 end)
--- 8. STOP ALL (distinct solid-red style, no hover fade)
-local stopBtn = Instance.new("TextButton")
-stopBtn.Size = UDim2.new(1, 0, 0, 40)
-stopBtn.BackgroundColor3 = Theme.Accent
-stopBtn.AutoButtonColor = false
-stopBtn.Text = "STOP ALL SCRIPTS"
-stopBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-stopBtn.TextSize = 16
-stopBtn.Font = Enum.Font.GothamBold
-stopBtn.Parent = ScrollFrame
-AddCorner(stopBtn, Theme.CornerSmall)
-stopBtn.MouseButton1Click:Connect(StopAllScripts)
 
-print("Farm Hub GUI Loaded (Modern UI). Check your screen.")
+-- Unload Integration Trigger Switch
+local QuitBtn = Instance.new("TextButton")
+QuitBtn.Size = UDim2.new(1, -20, 0, 36)
+QuitBtn.Position = UDim2.new(0, 10, 1, -41)
+QuitBtn.BackgroundColor3 = Color3.fromRGB(150, 20, 20) 
+QuitBtn.Text = "UNLOAD INTERFACE"
+QuitBtn.TextColor3 = Theme.TextPrimary
+QuitBtn.Font = Theme.FontBold
+QuitBtn.TextSize = 13
+QuitBtn.Parent = Sidebar
+StyleElement(QuitBtn, UDim.new(0, 6))
+
+QuitBtn.MouseButton1Click:Connect(function()
+    StopAllScripts()
+    ScreenGui:Destroy()
+end)
+
+-- Fixed Drag Area Implementation: Locks look-panning securely to handle drags
+local dragToggle, dragStart, startPos
+DragBar.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        dragToggle = true
+        dragStart = input.Position
+        startPos = MainFrame.Position
+        
+        local cam = workspace.CurrentCamera
+        if cam then
+            local oldType = cam.CameraType
+            cam.CameraType = Enum.CameraType.Scriptable
+            
+            local releaseConn
+            releaseConn = input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then 
+                    dragToggle = false 
+                    cam.CameraType = oldType 
+                    releaseConn:Disconnect()
+                end
+            end)
+        end
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) and dragToggle then
+        local delta = input.Position - dragStart
+        MainFrame.Position = UDim2.new(
+            startPos.X.Scale, 
+            startPos.X.Offset + delta.X, 
+            startPos.Y.Scale, 
+            startPos.Y.Offset + delta.Y
+        )
+    end
+end)
+
+print("NebulaTech Framework UI Successfully Repaired and Initialized.")
