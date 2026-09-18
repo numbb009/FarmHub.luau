@@ -1,4 +1,4 @@
--- NEBULATECH-STYLE PITCH BLACK HUB (TOTAL REPAIR V5.1)
+-- NEBULATECH-STYLE PITCH BLACK HUB (TOTAL REPAIR V5.1 - UPGRADED)
 -- Pure Black Panels + Red/Black Gradient Borders + Static Logo Image + Dedicated Drag Handle + Kept ESP (No Skeleton)
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -13,11 +13,16 @@ local stopAll = false
 local activeThreads = {}
 local fireballTargetPlayer = nil
 
+-- New Hitbox Config Integrations
+getgenv().HitboxTransparency = 0.5 -- 0 is solid red, 1 is invisible
+getgenv().HitboxColor = Color3.fromRGB(255, 0, 0) -- Neon Red
+getgenv().TeamCheck = false        -- Set to true if you don't want to expand teammates
+
 -- Track slider modifiers and safeguard parameter configurations
 local modifications = {
     WalkSpeed = 16,
     JumpPower = 50,
-    HitboxSize = 2,
+    HitboxSize = 10, -- Synchronized default with your new script
     HitboxActive = false,
     EscapeEnabled = false,
     SafeZoneCoordinates = Vector3.new(119, 641, -122)
@@ -435,7 +440,7 @@ tabs["Farming"].Button.TextColor3 = Theme.TextPrimary
 -- WIRING EXECUTION MACROS
 -- ==========================================
 
--- REPAIRED ITEM CONSOLIDATION: Everything related to farming maps into farmContainer
+-- REPAIRED ITEM CONSOLIDATION
 local farmContainer = CreateCard("Farming", "General Farming")
 
 CreateModernToggle(farmContainer, "Regular Dummy Farm", false, function(state)
@@ -494,7 +499,6 @@ CreateModernToggle(farmContainer, "Teleport + Farm (5k)", false, function(state)
     end)
 end)
 
--- REPOSITIONED: Fireball Farm safely migrated inside general farming
 CreateModernToggle(farmContainer, "Fireball Farm", false, function(state)
     if not state then 
         if activeThreads["FireballFarm"] then task.cancel(activeThreads["FireballFarm"]) end
@@ -530,7 +534,6 @@ CreateModernToggle(farmContainer, "Fireball Farm", false, function(state)
     end)
 end)
 
--- REPOSITIONED: Lightning Ball Farm safely migrated inside general farming
 CreateModernToggle(farmContainer, "Lightning Ball Farm", false, function(state)
     if not state then 
         if activeThreads["LightningFarm"] then task.cancel(activeThreads["LightningFarm"]) end
@@ -567,7 +570,6 @@ CreateModernToggle(farmContainer, "Lightning Ball Farm", false, function(state)
     end)
 end)
 
--- REPOSITIONED: Auto Coin Collect safely migrated inside general farming
 CreateModernToggle(farmContainer, "Auto Coin Collect", false, function(state)
     if not state then 
         if activeThreads["CoinFarm"] then task.cancel(activeThreads["CoinFarm"]) end
@@ -690,11 +692,7 @@ CreateSlider(modContainer, "Character JumpPower", 50, 300, 50, function(value)
     end
 end)
 
-CreateModernToggle(modContainer, "Hitbox Expander", false, function(state)
-    modifications.HitboxActive = state
-end)
-
-CreateSlider(modContainer, "Hitbox Dimension", 2, 30, 2, function(value)
+CreateSlider(modContainer, "Hitbox Dimension", 2, 30, 10, function(value)
     modifications.HitboxSize = value
 end)
 
@@ -705,28 +703,12 @@ CreateModernToggle(safeguardContainer, "Auto Health Escape", false, function(sta
     modifications.EscapeEnabled = state
 end)
 
--- INTEGRATED HITBOX TOGGLE SCRIPT
-CreateModernToggle(safeguardContainer, "Toggle Hitboxes", false, function(state)
-    for _, player in pairs(Players:GetPlayers()) do
-        if player ~= LocalPlayer and player.Character then
-            local hrp = player.Character:FindFirstChild("HumanoidRootPart")
-            if hrp then
-                if state then
-                    hrp.Size = Vector3.new(10, 10, 10)
-                    hrp.Transparency = 0.7
-                    hrp.Color = Theme.AccentActive
-                    hrp.Material = Enum.Material.ForceField
-                    hrp.CanCollide = false
-                else
-                    hrp.Size = Vector3.new(2, 2, 1)
-                    hrp.Transparency = 1
-                end
-            end
-        end
-    end
+-- UPGRADED & MOVED: Hitbox Expander toggle placed explicitly under Auto Health Escape
+CreateModernToggle(safeguardContainer, "Hitbox Expander", false, function(state)
+    modifications.HitboxActive = state
 end)
 
--- INTEGRATED ELEMENT: Fireball Auto-Hit Target routine loaded inside Safeguards container row
+-- INTEGRATED ELEMENT: Fireball Auto-Hit Target routine
 CreateModernToggle(safeguardContainer, "Fireball Auto-Hit Target", false, function(state)
     if not state then
         fireballTargetPlayer = nil
@@ -793,7 +775,6 @@ StartManagedThread("CoreModifierPersistenceLoop", function()
             hum.UseJumpPower = true
             hum.JumpPower = modifications.JumpPower
             
-            -- AUTOMATED CALCULATION: Replaced threshold % slider with a dynamic auto-die check boundary (25% health alert)
             if modifications.EscapeEnabled then
                 local hpPercent = (hum.Health / hum.MaxHealth) * 100
                 if hpPercent <= 25 and hum.Health > 0 then
@@ -806,19 +787,24 @@ StartManagedThread("CoreModifierPersistenceLoop", function()
 
         for _, player in pairs(Players:GetPlayers()) do
             if player ~= LocalPlayer and player.Character then
-                local targetHrp = player.Character:FindFirstChild("HumanoidRootPart")
-                local targetHum = player.Character:FindFirstChildOfClass("Humanoid")
-                
-                if targetHrp and targetHum and targetHum.Health > 0 then
-                    if modifications.HitboxActive then
-                        targetHrp.Size = Vector3.new(modifications.HitboxSize, modifications.HitboxSize, modifications.HitboxSize)
-                        targetHrp.Transparency = 0.7
-                        targetHrp.Color = Theme.AccentActive
-                        targetHrp.Material = Enum.Material.ForceField
-                        targetHrp.CanCollide = false
-                    else
-                        targetHrp.Size = Vector3.new(2, 2, 1)
-                        targetHrp.Transparency = 1
+                -- Optional Team Check from your new script config
+                if not (getgenv().TeamCheck and player.Team == LocalPlayer.Team) then
+                    local targetHrp = player.Character:FindFirstChild("HumanoidRootPart")
+                    local targetHum = player.Character:FindFirstChildOfClass("Humanoid")
+                    
+                    if targetHrp and targetHum and targetHum.Health > 0 then
+                        if modifications.HitboxActive then
+                            -- Upgraded configurations from your standalone script
+                            targetHrp.Size = Vector3.new(modifications.HitboxSize, modifications.HitboxSize, modifications.HitboxSize)
+                            targetHrp.Transparency = getgenv().HitboxTransparency
+                            targetHrp.Color = getgenv().HitboxColor
+                            targetHrp.Material = Enum.Material.Neon
+                            targetHrp.CanCollide = false
+                        else
+                            -- Reset back to default game hitboxes cleanly
+                            targetHrp.Size = Vector3.new(2, 2, 1)
+                            targetHrp.Transparency = 1
+                        end
                     end
                 end
             end
@@ -844,7 +830,7 @@ QuitBtn.MouseButton1Click:Connect(function()
     ScreenGui:Destroy()
 end)
 
--- Fixed Drag Area Implementation: Locks look-panning securely to handle drags
+-- Fixed Drag Area Implementation
 local dragToggle, dragStart, startPos
 DragBar.InputBegan:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
@@ -881,4 +867,4 @@ UserInputService.InputChanged:Connect(function(input)
     end
 end)
 
-print("NebulaTech Framework UI Successfully Repaired and Initialized.")
+print("NebulaTech Framework UI Successfully Upgraded with New Hitbox Safeguards.")
