@@ -13,6 +13,12 @@ local stopAll = false
 local activeThreads = {}
 local fireballTargetPlayer = nil
 
+-- Configuration for the integrated Hitbox Visualizer script
+getgenv().HitboxSize = 10         -- Size of the expanded hitbox cube
+getgenv().HitboxTransparency = 0.5 -- 0 is solid red, 1 is invisible
+getgenv().HitboxColor = Color3.fromRGB(255, 0, 0) -- Neon Red
+getgenv().TeamCheck = false        -- Set to true if you don't want to expand teammates
+
 -- Track slider modifiers and safeguard parameter configurations
 local modifications = {
     WalkSpeed = 16,
@@ -690,10 +696,6 @@ CreateSlider(modContainer, "Character JumpPower", 50, 300, 50, function(value)
     end
 end)
 
-CreateModernToggle(modContainer, "Hitbox Expander", false, function(state)
-    modifications.HitboxActive = state
-end)
-
 CreateSlider(modContainer, "Hitbox Dimension", 2, 30, 2, function(value)
     modifications.HitboxSize = value
 end)
@@ -703,6 +705,11 @@ local safeguardContainer = CreateCard("Combat & Config", "Safe Safeguards")
 
 CreateModernToggle(safeguardContainer, "Auto Health Escape", false, function(state)
     modifications.EscapeEnabled = state
+end)
+
+-- INTEGRATED ELEMENT: Hitbox Visualizer switch placed exactly here under Auto Health Escape
+CreateModernToggle(safeguardContainer, "Hitbox Visualizer", false, function(state)
+    modifications.HitboxActive = state
 end)
 
 -- INTEGRATED ELEMENT: Fireball Auto-Hit Target routine loaded inside Safeguards container row
@@ -785,19 +792,22 @@ StartManagedThread("CoreModifierPersistenceLoop", function()
 
         for _, player in pairs(Players:GetPlayers()) do
             if player ~= LocalPlayer and player.Character then
-                local targetHrp = player.Character:FindFirstChild("HumanoidRootPart")
-                local targetHum = player.Character:FindFirstChildOfClass("Humanoid")
-                
-                if targetHrp and targetHum and targetHum.Health > 0 then
-                    if modifications.HitboxActive then
-                        targetHrp.Size = Vector3.new(modifications.HitboxSize, modifications.HitboxSize, modifications.HitboxSize)
-                        targetHrp.Transparency = 0.7
-                        targetHrp.Color = Theme.AccentActive
-                        targetHrp.Material = Enum.Material.ForceField
-                        targetHrp.CanCollide = false
-                    else
-                        targetHrp.Size = Vector3.new(2, 2, 1)
-                        targetHrp.Transparency = 1
+                -- Integrated logic matching your visualizer script properties
+                if not (getgenv().TeamCheck and player.Team == LocalPlayer.Team) then
+                    local targetHrp = player.Character:FindFirstChild("HumanoidRootPart")
+                    local targetHum = player.Character:FindFirstChildOfClass("Humanoid")
+                    
+                    if targetHrp and targetHum and targetHum.Health > 0 then
+                        if modifications.HitboxActive then
+                            targetHrp.Size = Vector3.new(getgenv().HitboxSize, getgenv().HitboxSize, getgenv().HitboxSize)
+                            targetHrp.Transparency = getgenv().HitboxTransparency
+                            targetHrp.Color = getgenv().HitboxColor
+                            targetHrp.Material = Enum.Material.Neon
+                            targetHrp.CanCollide = false
+                        else
+                            targetHrp.Size = Vector3.new(2, 2, 1)
+                            targetHrp.Transparency = 1
+                        end
                     end
                 end
             end
