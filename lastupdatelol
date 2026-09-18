@@ -705,19 +705,16 @@ CreateModernToggle(safeguardContainer, "Auto Health Escape", false, function(sta
     modifications.EscapeEnabled = state
 end)
 
--- Hitbox Visualizer (Research Tool)
-local hitboxesActive = false
-CreateButton(ScrollFrame, "Toggle Hitboxes", function()
-    hitboxesActive = not hitboxesActive
-    
+-- INTEGRATED HITBOX TOGGLE SCRIPT
+CreateModernToggle(safeguardContainer, "Toggle Hitboxes", false, function(state)
     for _, player in pairs(Players:GetPlayers()) do
         if player ~= LocalPlayer and player.Character then
             local hrp = player.Character:FindFirstChild("HumanoidRootPart")
             if hrp then
-                if hitboxesActive then
+                if state then
                     hrp.Size = Vector3.new(10, 10, 10)
                     hrp.Transparency = 0.7
-                    hrp.Color = Color3.fromRGB(255, 0, 0)
+                    hrp.Color = Theme.AccentActive
                     hrp.Material = Enum.Material.ForceField
                     hrp.CanCollide = false
                 else
